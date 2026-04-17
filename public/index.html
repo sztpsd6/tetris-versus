@@ -20,7 +20,7 @@
 
         h1 {
             margin-top: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             color: #f39c12;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             font-size: 28px;
@@ -45,13 +45,40 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             z-index: 1;
         }
+        
+        .main-game-container {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+        }
+
+        .preview-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #2c3e50;
+            padding: 5px;
+            border-radius: 5px;
+            border: 2px solid #7f8c8d;
+            height: 400px;
+            box-sizing: border-box;
+            width: 60px;
+            padding-top: 15px;
+        }
+
+        .preview-canvas {
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            margin-bottom: 20px;
+        }
 
         /* 对手区域：绝对定位在右上方，像画中画一样缩小 */
         .opponent-area {
             position: absolute;
             top: 10px;
             right: 10px;
-            transform: scale(0.45);
+            transform: scale(0.35); /* 缩小一点点以容纳预览区 */
             transform-origin: top right;
             opacity: 0.85;
             padding: 10px;
@@ -59,6 +86,12 @@
             border: 2px solid #7f8c8d;
             pointer-events: none; /* 防止遮挡下方的点击操作 */
             z-index: 5;
+        }
+
+        /* 对手的预览区可以矮一点，不需要400px */
+        .opponent-area .preview-area {
+            height: auto;
+            padding-bottom: 10px;
         }
 
         .player-name {
@@ -86,38 +119,61 @@
             text-align: center;
         }
 
-        /* 移动端控制按钮区域 */
+        /* 移动端控制按钮区域 (全新现代化排版) */
         .mobile-controls {
             display: none;
-            grid-template-columns: repeat(4, 60px);
-            gap: 15px;
-            margin-top: 20px;
-            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 20px 10px;
+            box-sizing: border-box;
+            justify-content: space-between; /* 左右分布 */
+            align-items: flex-end;
+            margin-top: auto;
+            margin-bottom: 10px;
             z-index: 10;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 60px 60px;
+            gap: 10px;
+        }
+
+        .action-pad {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
         }
 
         /* 屏幕宽度小于 768px 时显示虚拟按键 */
         @media (max-width: 768px) {
             .mobile-controls {
-                display: grid;
+                display: flex;
             }
             .controls-info {
                 display: none;
             }
+            .player-area {
+                margin-right: 0 !important;
+            }
             .opponent-area {
-                transform: scale(0.4);
-                top: 0px;
+                transform: scale(0.30);
+                top: 5px;
                 right: 5px;
+            }
+            body {
+                padding-bottom: 30px;
             }
         }
 
         .control-btn {
             width: 60px;
             height: 60px;
-            background-color: #34495e;
-            border: 2px solid #95a5a6;
+            background: linear-gradient(145deg, #34495e, #2c3e50);
+            border: 1px solid #455a64;
             border-radius: 50%;
-            color: white;
+            color: #ecf0f1;
             font-size: 24px;
             display: flex;
             justify-content: center;
@@ -125,32 +181,34 @@
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.1);
             cursor: pointer;
         }
 
         .control-btn:active {
-            background-color: #2ecc71;
-            transform: translateY(2px);
-            box-shadow: 0 2px 3px rgba(0,0,0,0.3);
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            transform: translateY(3px) scale(0.95);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            color: #3498db;
         }
 
-        /* 按钮排版 */
-        #btn-up { grid-column: 2; grid-row: 1; }
+        .btn-large {
+            width: 70px;
+            height: 70px;
+            font-size: 28px;
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            border-color: #c0392b;
+        }
+        
+        .btn-large:active {
+            background: linear-gradient(145deg, #c0392b, #e74c3c);
+            color: #fff;
+        }
+
+        /* D-Pad 排版 */
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-down { grid-column: 2; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
-        #btn-space { 
-            grid-column: 4; 
-            grid-row: 1 / span 2; 
-            border-radius: 10px; 
-            height: 100%; 
-            width: 100%;
-            font-size: 16px;
-            writing-mode: vertical-lr; /* 文字竖向排列 */
-            text-orientation: upright;
-            letter-spacing: 2px;
-        }
 
         .status-bar {
             position: absolute;
@@ -239,7 +297,15 @@
         <div class="player-area" style="margin-right: 110px;">
             <div class="player-name">我</div>
             <div class="score-board">分数: <span id="my-score">0</span></div>
-            <canvas id="my-canvas" width="240" height="400"></canvas>
+            <div class="main-game-container">
+                <canvas id="my-canvas" width="240" height="400"></canvas>
+                <!-- 预览区 -->
+                <div class="preview-area">
+                    <canvas id="preview-1" class="preview-canvas" width="40" height="40"></canvas>
+                    <canvas id="preview-2" class="preview-canvas" width="40" height="40"></canvas>
+                    <canvas id="preview-3" class="preview-canvas" width="40" height="40"></canvas>
+                </div>
+            </div>
             <div class="controls-info">
                 W / ↑: 旋转 | S / ↓: 加速下落<br>
                 A / ←: 左移 | D / →: 右移<br>
@@ -251,17 +317,28 @@
         <div class="player-area opponent-area">
             <div class="player-name">对方</div>
             <div class="score-board">分数: <span id="op-score">0</span></div>
-            <canvas id="op-canvas" width="240" height="400"></canvas>
+            <div class="main-game-container">
+                <canvas id="op-canvas" width="240" height="400"></canvas>
+                <div class="preview-area">
+                    <canvas id="op-preview" class="preview-canvas" width="40" height="40"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 移动端控制按钮 -->
-    <div class="mobile-controls" >
-        <div class="control-btn" id="btn-up">↻</div>
-        <div class="control-btn" id="btn-left">←</div>
-        <div class="control-btn" id="btn-down">↓</div>
-        <div class="control-btn" id="btn-right">→</div>
-        <div class="control-btn" id="btn-space">直接到底</div>
+    <!-- 移动端控制按钮 (左摇杆 右动作) -->
+    <div class="mobile-controls">
+        <!-- 左侧方向 -->
+        <div class="d-pad">
+            <div class="control-btn" id="btn-left">◀</div>
+            <div class="control-btn" id="btn-down">▼</div>
+            <div class="control-btn" id="btn-right">▶</div>
+        </div>
+        <!-- 右侧动作 -->
+        <div class="action-pad">
+            <div class="control-btn" id="btn-up">↻</div>
+            <div class="control-btn btn-large" id="btn-space">⏬</div>
+        </div>
     </div>
 
     <div id="game-over" class="status-bar"></div>
@@ -296,7 +373,7 @@
         ];
 
         class Tetris {
-            constructor(canvasId, isLocal) {
+            constructor(canvasId, isLocal, previewIds = []) {
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
@@ -309,10 +386,75 @@
                     score: 0
                 };
                 this.gameOver = false;
+                this.pieceQueue = [];
+                this.nextPiece = null;
                 
-                if (isLocal) {
+                // 初始化预览区 context
+                this.previewCtxs = previewIds.map(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const ctx = el.getContext('2d');
+                        ctx.scale(10, 10);
+                        return ctx;
+                    }
+                    return null;
+                }).filter(ctx => ctx !== null);
+                
+                if (this.isLocal) {
+                    for(let i=0; i<3; i++) {
+                        this.pieceQueue.push(this.getRandomPiece());
+                    }
                     this.reset();
                     this.updateScore();
+                }
+            }
+
+            getRandomPiece() {
+                const pieces = '1234567';
+                return this.createPiece(pieces[pieces.length * Math.random() | 0]);
+            }
+
+            drawPreview() {
+                if (this.isLocal) {
+                    this.previewCtxs.forEach((ctx, i) => {
+                        ctx.clearRect(0, 0, 4, 4);
+                        const matrix = this.pieceQueue[i];
+                        if (!matrix) return;
+                        
+                        const offsetX = (4 - matrix[0].length) / 2;
+                        const offsetY = (4 - matrix.length) / 2;
+                        
+                        matrix.forEach((row, y) => {
+                            row.forEach((value, x) => {
+                                if (value !== 0) {
+                                    ctx.fillStyle = COLORS[value];
+                                    ctx.fillRect(x + offsetX, y + offsetY, 1, 1);
+                                    ctx.lineWidth = 0.1;
+                                    ctx.strokeStyle = '#2c3e50';
+                                    ctx.strokeRect(x + offsetX, y + offsetY, 1, 1);
+                                }
+                            });
+                        });
+                    });
+                } else if (this.nextPiece && this.previewCtxs[0]) {
+                    // 对手屏幕的预览 (只显示1个)
+                    const ctx = this.previewCtxs[0];
+                    ctx.clearRect(0, 0, 4, 4);
+                    const matrix = this.nextPiece;
+                    const offsetX = (4 - matrix[0].length) / 2;
+                    const offsetY = (4 - matrix.length) / 2;
+                    
+                    matrix.forEach((row, y) => {
+                        row.forEach((value, x) => {
+                            if (value !== 0) {
+                                ctx.fillStyle = COLORS[value];
+                                ctx.fillRect(x + offsetX, y + offsetY, 1, 1);
+                                ctx.lineWidth = 0.1;
+                                ctx.strokeStyle = '#2c3e50';
+                                ctx.strokeRect(x + offsetX, y + offsetY, 1, 1);
+                            }
+                        });
+                    });
                 }
             }
 
@@ -345,6 +487,7 @@
                 if (this.player.matrix) {
                     this.drawMatrix(this.player.matrix, this.player.pos);
                 }
+                this.drawPreview();
             }
 
             merge(matrix, pos) {
@@ -433,8 +576,14 @@
             }
 
             reset() {
-                const pieces = '1234567';
-                this.player.matrix = this.createPiece(pieces[pieces.length * Math.random() | 0]);
+                if (this.isLocal) {
+                    this.player.matrix = this.pieceQueue.shift();
+                    this.pieceQueue.push(this.getRandomPiece());
+                    this.drawPreview();
+                } else {
+                    this.player.matrix = this.getRandomPiece();
+                }
+                
                 this.player.pos.y = 0;
                 this.player.pos.x = (this.board[0].length / 2 | 0) - (this.player.matrix[0].length / 2 | 0);
                 
@@ -515,12 +664,13 @@
             
             localTetris.draw();
             
-            // 每帧同步状态给对方
+            // 每帧同步状态给对方，包含队列里下一个要出的方块
             if (socket && !localTetris.gameOver) {
                 socket.emit('state_update', {
                     board: localTetris.board,
                     player: localTetris.player,
-                    score: localTetris.score
+                    score: localTetris.score,
+                    nextPiece: localTetris.pieceQueue[0]
                 });
             }
             
@@ -578,8 +728,8 @@
 
             document.getElementById('start-screen').style.display = 'none';
             
-            localTetris = new Tetris('my-canvas', true);
-            opTetris = new Tetris('op-canvas', false);
+            localTetris = new Tetris('my-canvas', true, ['preview-1', 'preview-2', 'preview-3']);
+            opTetris = new Tetris('op-canvas', false, ['op-preview']);
             
             localTetris.draw();
             opTetris.draw();
@@ -619,6 +769,7 @@
                 opTetris.board = data.board;
                 opTetris.player = data.player;
                 opTetris.score = data.score;
+                opTetris.nextPiece = data.nextPiece;
                 opTetris.updateScore();
                 opTetris.draw();
             });
