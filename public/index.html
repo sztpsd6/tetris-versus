@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>双人俄罗斯方块对战</title>
     <style>
         body {
@@ -13,21 +13,26 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             overflow: hidden;
+            touch-action: none; /* 防止移动端意外滚动 */
         }
 
         h1 {
-            margin-top: 0;
+            margin-top: 10px;
+            margin-bottom: 10px;
             color: #f39c12;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 28px;
         }
 
-        .game-container {
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
             display: flex;
-            gap: 50px;
             justify-content: center;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         .player-area {
@@ -35,20 +40,36 @@
             flex-direction: column;
             align-items: center;
             background-color: #34495e;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            z-index: 1;
+        }
+
+        /* 对手区域：绝对定位在右上方，像画中画一样缩小 */
+        .opponent-area {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            transform: scale(0.45);
+            transform-origin: top right;
+            opacity: 0.85;
+            padding: 10px;
+            background-color: rgba(52, 73, 94, 0.9);
+            border: 2px solid #7f8c8d;
+            pointer-events: none; /* 防止遮挡下方的点击操作 */
+            z-index: 5;
         }
 
         .player-name {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .score-board {
-            font-size: 20px;
-            margin-bottom: 15px;
+            font-size: 18px;
+            margin-bottom: 10px;
             color: #f1c40f;
         }
 
@@ -65,31 +86,107 @@
             text-align: center;
         }
 
+        /* 移动端控制按钮区域 */
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(4, 60px);
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        /* 屏幕宽度小于 768px 时显示虚拟按键 */
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: grid;
+            }
+            .controls-info {
+                display: none;
+            }
+            .opponent-area {
+                transform: scale(0.4);
+                top: 0px;
+                right: 5px;
+            }
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background-color: #34495e;
+            border: 2px solid #95a5a6;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+
+        .control-btn:active {
+            background-color: #2ecc71;
+            transform: translateY(2px);
+            box-shadow: 0 2px 3px rgba(0,0,0,0.3);
+        }
+
+        /* 按钮排版 */
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-space { 
+            grid-column: 4; 
+            grid-row: 1 / span 2; 
+            border-radius: 10px; 
+            height: 100%; 
+            width: 100%;
+            font-size: 16px;
+            writing-mode: vertical-lr; /* 文字竖向排列 */
+            text-orientation: upright;
+            letter-spacing: 2px;
+        }
+
         .status-bar {
-            margin-top: 30px;
-            font-size: 18px;
-            padding: 10px 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            padding: 15px 30px;
             background-color: #e74c3c;
             border-radius: 5px;
             display: none;
+            z-index: 20;
+            text-align: center;
+            white-space: nowrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
         #start-screen {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(44, 62, 80, 0.9);
+            background-color: rgba(44, 62, 80, 0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
         }
 
-        button {
-            padding: 15px 30px;
+        button.action-btn {
+            padding: 15px 40px;
             font-size: 20px;
             background-color: #27ae60;
             color: white;
@@ -98,57 +195,73 @@
             cursor: pointer;
             transition: background-color 0.3s;
             margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
         }
 
-        button:hover {
+        button.action-btn:hover {
             background-color: #2ecc71;
         }
 
         input {
-            padding: 10px;
+            padding: 15px;
             font-size: 18px;
             border-radius: 5px;
             border: 1px solid #bdc3c7;
             margin-bottom: 20px;
             text-align: center;
+            width: 100%;
+            max-width: 300px;
+            box-sizing: border-box;
+        }
+
+        #connection-status {
+            margin-top: 5px;
+            font-size: 14px;
+            height: 20px;
         }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <h1>双人俄罗斯方块对战</h1>
-        <p>互相消除行可以给对方增加垃圾行哦！</p>
+        <h1 style="font-size: 36px; margin-bottom: 20px;">Tetris Battle</h1>
+        <p style="margin-bottom: 30px; color: #bdc3c7;">互相消除行可以给对方增加垃圾行哦！<br>支持电脑 WASD/方向键 和手机触屏</p>
         <input type="text" id="room-id" placeholder="输入房间号 (随便编一个)" value="love520">
-        <button id="join-btn">加入房间</button>
+        <button id="join-btn" class="action-btn">加入房间</button>
     </div>
 
     <h1>Tetris Battle</h1>
-    
     <div id="connection-status">等待对手加入...</div>
 
-    <div class="game-container">
+    <div class="game-wrapper">
         <!-- 本地玩家 -->
-        <div class="player-area">
+        <div class="player-area" style="margin-right: 110px;">
             <div class="player-name">我</div>
             <div class="score-board">分数: <span id="my-score">0</span></div>
             <canvas id="my-canvas" width="240" height="400"></canvas>
             <div class="controls-info">
-                ↑: 旋转 | ↓: 加速下落<br>
-                ←: 左移 | →: 右移<br>
+                W / ↑: 旋转 | S / ↓: 加速下落<br>
+                A / ←: 左移 | D / →: 右移<br>
                 空格: 直接到底
             </div>
         </div>
 
-        <!-- 对手 -->
-        <div class="player-area">
+        <!-- 对手 (绝对定位在右上方缩放) -->
+        <div class="player-area opponent-area">
             <div class="player-name">对方</div>
             <div class="score-board">分数: <span id="op-score">0</span></div>
             <canvas id="op-canvas" width="240" height="400"></canvas>
-            <div class="controls-info">
-                实时同步中...
-            </div>
         </div>
+    </div>
+
+    <!-- 移动端控制按钮 -->
+    <div class="mobile-controls" >
+        <div class="control-btn" id="btn-up">↻</div>
+        <div class="control-btn" id="btn-left">←</div>
+        <div class="control-btn" id="btn-down">↓</div>
+        <div class="control-btn" id="btn-right">→</div>
+        <div class="control-btn" id="btn-space">直接到底</div>
     </div>
 
     <div id="game-over" class="status-bar"></div>
@@ -327,8 +440,8 @@
                 
                 if (this.collide(this.board, this.player)) {
                     this.gameOver = true;
-                    socket.emit('game_over');
-                    showStatus('你输了！对方太强了~');
+                    if (socket) socket.emit('game_over');
+                    showStatus('你输了！对方太强了~<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
                 }
             }
 
@@ -353,7 +466,7 @@
                 if (linesCleared > 0) {
                     this.updateScore();
                     // 发送攻击
-                    if (linesCleared > 1) {
+                    if (linesCleared > 1 && socket) {
                         socket.emit('attack', linesCleared - 1);
                     }
                 }
@@ -385,7 +498,7 @@
 
         function showStatus(msg) {
             const el = document.getElementById('game-over');
-            el.innerText = msg;
+            el.innerHTML = msg;
             el.style.display = 'block';
         }
 
@@ -414,20 +527,21 @@
             requestAnimationFrame(update);
         }
 
+        // 键盘事件监听 (支持方向键和 WASD)
         document.addEventListener('keydown', event => {
             if (!gameActive || localTetris.gameOver) return;
             
             switch (event.keyCode) {
-                case 37: // Left
+                case 37: case 65: // Left, A
                     localTetris.playerMove(-1);
                     break;
-                case 39: // Right
+                case 39: case 68: // Right, D
                     localTetris.playerMove(1);
                     break;
-                case 40: // Down
+                case 40: case 83: // Down, S
                     localTetris.playerDrop();
                     break;
-                case 38: // Up
+                case 38: case 87: // Up, W
                     localTetris.playerRotate(1);
                     break;
                 case 32: // Space
@@ -436,6 +550,26 @@
             }
             localTetris.draw();
         });
+
+        // 移动端按钮绑定
+        const bindBtn = (id, action) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const handler = (e) => {
+                e.preventDefault(); // 防止双击缩放和其他默认行为
+                if (!gameActive || localTetris.gameOver) return;
+                action();
+                localTetris.draw();
+            };
+            btn.addEventListener('touchstart', handler, {passive: false});
+            btn.addEventListener('mousedown', handler);
+        };
+
+        bindBtn('btn-up', () => localTetris.playerRotate(1));
+        bindBtn('btn-left', () => localTetris.playerMove(-1));
+        bindBtn('btn-right', () => localTetris.playerMove(1));
+        bindBtn('btn-down', () => localTetris.playerDrop());
+        bindBtn('btn-space', () => localTetris.playerHardDrop());
 
         // 加入房间
         document.getElementById('join-btn').addEventListener('click', () => {
@@ -463,9 +597,10 @@
                 document.getElementById('connection-status').innerText = '对手已加入！游戏开始！';
                 document.getElementById('connection-status').style.color = '#2ecc71';
                 gameActive = true;
+                
                 // 重置时间，防止第一下直接掉落
                 lastTime = 0;
-                // 注意：如果需要重置，不能丢失 ctx.scale，最好直接调用实例的 reset 方法
+                
                 localTetris.board = localTetris.createMatrix(COLS, ROWS);
                 localTetris.score = 0;
                 localTetris.updateScore();
@@ -495,12 +630,12 @@
 
             socket.on('op_game_over', () => {
                 gameActive = false;
-                showStatus('你赢啦！！对方被你打败了！');
+                showStatus('你赢啦！！对方被你打败了！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
             });
             
             socket.on('op_disconnected', () => {
                 gameActive = false;
-                showStatus('对方掉线了...');
+                showStatus('对方掉线了...<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">刷新页面</button>');
             });
         });
     </script>

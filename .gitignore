@@ -8,3 +8,4 @@ yarn-error.log*
 # IDE
 .idea/
 .vscode/
+/deploy_ui.py
