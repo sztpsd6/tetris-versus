@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双人俄罗斯方块对战</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-container {
+            display: flex;
+            gap: 50px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .player-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .player-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .score-board {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #f1c40f;
+        }
+
+        canvas {
+            background-color: #1a252f;
+            border: 2px solid #7f8c8d;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .controls-info {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #bdc3c7;
+            text-align: center;
+        }
+
+        .status-bar {
+            margin-top: 30px;
+            font-size: 18px;
+            padding: 10px 20px;
+            background-color: #e74c3c;
+            border-radius: 5px;
+            display: none;
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(44, 62, 80, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #2ecc71;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: 1px solid #bdc3c7;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1>双人俄罗斯方块对战</h1>
+        <p>互相消除行可以给对方增加垃圾行哦！</p>
+        <input type="text" id="room-id" placeholder="输入房间号 (随便编一个)" value="love520">
+        <button id="join-btn">加入房间</button>
+    </div>
+
+    <h1>Tetris Battle</h1>
+    
+    <div id="connection-status">等待对手加入...</div>
+
+    <div class="game-container">
+        <!-- 本地玩家 -->
+        <div class="player-area">
+            <div class="player-name">我</div>
+            <div class="score-board">分数: <span id="my-score">0</span></div>
+            <canvas id="my-canvas" width="240" height="400"></canvas>
+            <div class="controls-info">
+                ↑: 旋转 | ↓: 加速下落<br>
+                ←: 左移 | →: 右移<br>
+                空格: 直接到底
+            </div>
+        </div>
+
+        <!-- 对手 -->
+        <div class="player-area">
+            <div class="player-name">对方</div>
+            <div class="score-board">分数: <span id="op-score">0</span></div>
+            <canvas id="op-canvas" width="240" height="400"></canvas>
+            <div class="controls-info">
+                实时同步中...
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over" class="status-bar"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // === 俄罗斯方块核心逻辑 ===
+        const COLS = 12;
+        const ROWS = 20;
+        const BLOCK_SIZE = 20;
+        
+        const COLORS = [
+            null,
+            '#e74c3c', // I
+            '#3498db', // J
+            '#f1c40f', // L
+            '#f39c12', // O
+            '#2ecc71', // S
+            '#9b59b6', // T
+            '#e67e22'  // Z
+        ];
+
+        const PIECES = [
+            [],
+            [[0,0,0,0], [1,1,1,1], [0,0,0,0], [0,0,0,0]], // I
+            [[2,0,0], [2,2,2], [0,0,0]],                 // J
+            [[0,0,3], [3,3,3], [0,0,0]],                 // L
+            [[4,4], [4,4]],                              // O
+            [[0,5,5], [5,5,0], [0,0,0]],                 // S
+            [[0,6,0], [6,6,6], [0,0,0]],                 // T
+            [[7,7,0], [0,7,7], [0,0,0]]                  // Z
+        ];
+
+        class Tetris {
+            constructor(canvasId, isLocal) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+                this.isLocal = isLocal;
+                this.board = this.createMatrix(COLS, ROWS);
+                this.score = 0;
+                this.player = {
+                    pos: {x: 0, y: 0},
+                    matrix: null,
+                    score: 0
+                };
+                this.gameOver = false;
+                
+                if (isLocal) {
+                    this.reset();
+                    this.updateScore();
+                }
+            }
+
+            createMatrix(w, h) {
+                const matrix = [];
+                while (h--) {
+                    matrix.push(new Array(w).fill(0));
+                }
+                return matrix;
+            }
+
+            drawMatrix(matrix, offset) {
+                matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            this.ctx.fillStyle = value === 9 ? '#7f8c8d' : COLORS[value]; // 9 是垃圾块
+                            this.ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+                            this.ctx.lineWidth = 0.05;
+                            this.ctx.strokeStyle = '#2c3e50';
+                            this.ctx.strokeRect(x + offset.x, y + offset.y, 1, 1);
+                        }
+                    });
+                });
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#1a252f';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.drawMatrix(this.board, {x: 0, y: 0});
+                if (this.player.matrix) {
+                    this.drawMatrix(this.player.matrix, this.player.pos);
+                }
+            }
+
+            merge(matrix, pos) {
+                matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            this.board[y + pos.y][x + pos.x] = value;
+                        }
+                    });
+                });
+            }
+
+            collide(board, player) {
+                const m = player.matrix;
+                const o = player.pos;
+                for (let y = 0; y < m.length; ++y) {
+                    for (let x = 0; x < m[y].length; ++x) {
+                        if (m[y][x] !== 0 &&
+                           (board[y + o.y] && board[y + o.y][x + o.x]) !== 0) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            rotate(matrix, dir) {
+                for (let y = 0; y < matrix.length; ++y) {
+                    for (let x = 0; x < y; ++x) {
+                        [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+                    }
+                }
+                if (dir > 0) {
+                    matrix.forEach(row => row.reverse());
+                } else {
+                    matrix.reverse();
+                }
+            }
+
+            playerRotate(dir) {
+                const pos = this.player.pos.x;
+                let offset = 1;
+                this.rotate(this.player.matrix, dir);
+                while (this.collide(this.board, this.player)) {
+                    this.player.pos.x += offset;
+                    offset = -(offset + (offset > 0 ? 1 : -1));
+                    if (offset > this.player.matrix[0].length) {
+                        this.rotate(this.player.matrix, -dir);
+                        this.player.pos.x = pos;
+                        return;
+                    }
+                }
+            }
+
+            playerMove(offset) {
+                this.player.pos.x += offset;
+                if (this.collide(this.board, this.player)) {
+                    this.player.pos.x -= offset;
+                }
+            }
+
+            playerDrop() {
+                this.player.pos.y++;
+                if (this.collide(this.board, this.player)) {
+                    this.player.pos.y--;
+                    this.merge(this.player.matrix, this.player.pos);
+                    this.reset();
+                    this.sweep();
+                }
+                dropCounter = 0;
+            }
+            
+            playerHardDrop() {
+                while (!this.collide(this.board, this.player)) {
+                    this.player.pos.y++;
+                }
+                this.player.pos.y--;
+                this.merge(this.player.matrix, this.player.pos);
+                this.reset();
+                this.sweep();
+                dropCounter = 0;
+            }
+
+            createPiece(type) {
+                return PIECES[type];
+            }
+
+            reset() {
+                const pieces = '1234567';
+                this.player.matrix = this.createPiece(pieces[pieces.length * Math.random() | 0]);
+                this.player.pos.y = 0;
+                this.player.pos.x = (this.board[0].length / 2 | 0) - (this.player.matrix[0].length / 2 | 0);
+                
+                if (this.collide(this.board, this.player)) {
+                    this.gameOver = true;
+                    socket.emit('game_over');
+                    showStatus('你输了！对方太强了~');
+                }
+            }
+
+            sweep() {
+                let rowCount = 1;
+                let linesCleared = 0;
+                outer: for (let y = this.board.length - 1; y > 0; --y) {
+                    for (let x = 0; x < this.board[y].length; ++x) {
+                        if (this.board[y][x] === 0) {
+                            continue outer;
+                        }
+                    }
+                    const row = this.board.splice(y, 1)[0].fill(0);
+                    this.board.unshift(row);
+                    ++y;
+                    
+                    this.score += rowCount * 10;
+                    rowCount *= 2;
+                    linesCleared++;
+                }
+                
+                if (linesCleared > 0) {
+                    this.updateScore();
+                    // 发送攻击
+                    if (linesCleared > 1) {
+                        socket.emit('attack', linesCleared - 1);
+                    }
+                }
+            }
+
+            addGarbage(lines) {
+                for (let i = 0; i < lines; i++) {
+                    const row = new Array(COLS).fill(9);
+                    // 留一个空缺
+                    row[Math.floor(Math.random() * COLS)] = 0;
+                    this.board.shift();
+                    this.board.push(row);
+                }
+            }
+
+            updateScore() {
+                document.getElementById(this.isLocal ? 'my-score' : 'op-score').innerText = this.score;
+            }
+        }
+
+        // === 网络与游戏主循环 ===
+        let socket;
+        let localTetris;
+        let opTetris;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let gameActive = false;
+
+        function showStatus(msg) {
+            const el = document.getElementById('game-over');
+            el.innerText = msg;
+            el.style.display = 'block';
+        }
+
+        function update(time = 0) {
+            if (!gameActive) return;
+            
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                localTetris.playerDrop();
+            }
+            
+            localTetris.draw();
+            
+            // 每帧同步状态给对方
+            if (socket && !localTetris.gameOver) {
+                socket.emit('state_update', {
+                    board: localTetris.board,
+                    player: localTetris.player,
+                    score: localTetris.score
+                });
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener('keydown', event => {
+            if (!gameActive || localTetris.gameOver) return;
+            
+            switch (event.keyCode) {
+                case 37: // Left
+                    localTetris.playerMove(-1);
+                    break;
+                case 39: // Right
+                    localTetris.playerMove(1);
+                    break;
+                case 40: // Down
+                    localTetris.playerDrop();
+                    break;
+                case 38: // Up
+                    localTetris.playerRotate(1);
+                    break;
+                case 32: // Space
+                    localTetris.playerHardDrop();
+                    break;
+            }
+            localTetris.draw();
+        });
+
+        // 加入房间
+        document.getElementById('join-btn').addEventListener('click', () => {
+            const roomId = document.getElementById('room-id').value;
+            if (!roomId) return;
+
+            document.getElementById('start-screen').style.display = 'none';
+            
+            localTetris = new Tetris('my-canvas', true);
+            opTetris = new Tetris('op-canvas', false);
+            
+            localTetris.draw();
+            opTetris.draw();
+
+            // 连接 WebSocket
+            socket = io();
+            
+            socket.emit('join_room', roomId);
+            
+            socket.on('waiting', () => {
+                document.getElementById('connection-status').innerText = '等待对方加入... 快把房间号告诉她！';
+            });
+            
+            socket.on('start_game', () => {
+                document.getElementById('connection-status').innerText = '对手已加入！游戏开始！';
+                document.getElementById('connection-status').style.color = '#2ecc71';
+                gameActive = true;
+                // 重置时间，防止第一下直接掉落
+                lastTime = 0;
+                // 注意：如果需要重置，不能丢失 ctx.scale，最好直接调用实例的 reset 方法
+                localTetris.board = localTetris.createMatrix(COLS, ROWS);
+                localTetris.score = 0;
+                localTetris.updateScore();
+                localTetris.reset();
+                
+                opTetris.board = opTetris.createMatrix(COLS, ROWS);
+                opTetris.score = 0;
+                opTetris.updateScore();
+                
+                // 启动游戏循环
+                requestAnimationFrame(update);
+            });
+
+            socket.on('op_state', data => {
+                if (!gameActive) return;
+                opTetris.board = data.board;
+                opTetris.player = data.player;
+                opTetris.score = data.score;
+                opTetris.updateScore();
+                opTetris.draw();
+            });
+
+            socket.on('receive_attack', lines => {
+                if (!gameActive) return;
+                localTetris.addGarbage(lines);
+            });
+
+            socket.on('op_game_over', () => {
+                gameActive = false;
+                showStatus('你赢啦！！对方被你打败了！');
+            });
+            
+            socket.on('op_disconnected', () => {
+                gameActive = false;
+                showStatus('对方掉线了...');
+            });
+        });
+    </script>
+</body>
+</html>
