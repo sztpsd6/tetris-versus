@@ -723,10 +723,10 @@
                         ctx.clearRect(0, 0, 4, 4);
                         const matrix = this.pieceQueue[i];
                         if (!matrix) return;
-                        
+
                         const offsetX = (4 - matrix[0].length) / 2;
                         const offsetY = (4 - matrix.length) / 2;
-                        
+
                         matrix.forEach((row, y) => {
                             row.forEach((value, x) => {
                                 if (value !== 0) {
@@ -740,13 +740,12 @@
                         });
                     });
                 } else if (this.nextPiece && this.previewCtxs[0]) {
-                    // 对手屏幕的预览 (只显示1个)
                     const ctx = this.previewCtxs[0];
                     ctx.clearRect(0, 0, 4, 4);
                     const matrix = this.nextPiece;
                     const offsetX = (4 - matrix[0].length) / 2;
                     const offsetY = (4 - matrix.length) / 2;
-                    
+
                     matrix.forEach((row, y) => {
                         row.forEach((value, x) => {
                             if (value !== 0) {
@@ -773,7 +772,7 @@
                 matrix.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value !== 0) {
-                            this.ctx.fillStyle = value === 9 ? '#7f8c8d' : COLORS[value]; // 9 是垃圾块
+                            this.ctx.fillStyle = value === 9 ? '#7f8c8d' : COLORS[value];
                             this.ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
                             this.ctx.lineWidth = 0.05;
                             this.ctx.strokeStyle = '#2c3e50';
@@ -855,7 +854,7 @@
                 }
             }
 
-            playerDrop(resetTimer = true) {
+            playerDrop(isUser = false) {
                 this.player.pos.y++;
                 if (this.collide(this.board, this.player)) {
                     this.player.pos.y--;
@@ -863,11 +862,12 @@
                     this.reset();
                     this.sweep();
                 }
-                if (resetTimer) {
-                    dropCounter = 0;
+                if (isUser) {
+                    SoundManager.play('softdrop');
                 }
+                dropCounter = 0;
             }
-            
+
             playerHardDrop() {
                 while (!this.collide(this.board, this.player)) {
                     this.player.pos.y++;
@@ -876,6 +876,7 @@
                 this.merge(this.player.matrix, this.player.pos);
                 this.reset();
                 this.sweep();
+                SoundManager.play('harddrop');
                 dropCounter = 0;
             }
 
@@ -913,6 +914,7 @@
             sweep() {
                 let rowCount = 1;
                 let linesCleared = 0;
+                // 从底部向上遍历（y > 0），跳过 y=0 顶行以防误消除
                 outer: for (let y = this.board.length - 1; y > 0; --y) {
                     for (let x = 0; x < this.board[y].length; ++x) {
                         if (this.board[y][x] === 0) {
@@ -1021,75 +1023,128 @@
             play(type) {
                 if (!this.enabled || !this.audioContext) return;
                 const ctx = this.audioContext;
-                const oscillator = ctx.createOscillator();
-                const gainNode = ctx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(ctx.destination);
-
                 const now = ctx.currentTime;
 
                 switch(type) {
                     case 'move':
-                        oscillator.frequency.setValueAtTime(200, now);
-                        gainNode.gain.setValueAtTime(0.1, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.05);
+                        // 短促轻快的"嗒"声
+                        const m = ctx.createOscillator();
+                        const mg = ctx.createGain();
+                        m.type = 'triangle';
+                        m.connect(mg);
+                        mg.connect(ctx.destination);
+                        m.frequency.setValueAtTime(600, now);
+                        mg.gain.setValueAtTime(0.08, now);
+                        mg.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                        m.start(now);
+                        m.stop(now + 0.04);
                         break;
+
                     case 'rotate':
-                        oscillator.frequency.setValueAtTime(300, now);
-                        gainNode.gain.setValueAtTime(0.1, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.08);
+                        // 清脆的"咔"声，有轻微音调上升
+                        const r = ctx.createOscillator();
+                        const rg = ctx.createGain();
+                        r.type = 'square';
+                        r.connect(rg);
+                        rg.connect(ctx.destination);
+                        r.frequency.setValueAtTime(380, now);
+                        r.frequency.exponentialRampToValueAtTime(520, now + 0.06);
+                        rg.gain.setValueAtTime(0.08, now);
+                        rg.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+                        r.start(now);
+                        r.stop(now + 0.07);
                         break;
-                    case 'drop':
-                        oscillator.frequency.setValueAtTime(150, now);
-                        gainNode.gain.setValueAtTime(0.15, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.1);
+
+                    case 'softdrop':
+                        // 略低沉的下落音效，稍长于移动
+                        const sd = ctx.createOscillator();
+                        const sdg = ctx.createGain();
+                        sd.type = 'sine';
+                        sd.connect(sdg);
+                        sdg.connect(ctx.destination);
+                        sd.frequency.setValueAtTime(280, now);
+                        sd.frequency.exponentialRampToValueAtTime(140, now + 0.07);
+                        sdg.gain.setValueAtTime(0.12, now);
+                        sdg.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+                        sd.start(now);
+                        sd.stop(now + 0.07);
                         break;
+
+                    case 'harddrop':
+                        // 有冲击力的"砰"声：高频撞击 + 低频余振
+                        const hd = ctx.createOscillator();
+                        const hdg = ctx.createGain();
+                        hd.type = 'sawtooth';
+                        hd.connect(hdg);
+                        hdg.connect(ctx.destination);
+                        hd.frequency.setValueAtTime(200, now);
+                        hd.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                        hdg.gain.setValueAtTime(0.25, now);
+                        hdg.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                        hd.start(now);
+                        hd.stop(now + 0.15);
+                        break;
+
                     case 'clear':
-                        oscillator.type = 'square';
-                        oscillator.frequency.setValueAtTime(400, now);
-                        oscillator.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                        gainNode.gain.setValueAtTime(0.15, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.2);
+                        // 单行消除：清脆上扬音
+                        const c = ctx.createOscillator();
+                        const cg = ctx.createGain();
+                        c.type = 'square';
+                        c.connect(cg);
+                        cg.connect(ctx.destination);
+                        c.frequency.setValueAtTime(400, now);
+                        c.frequency.exponentialRampToValueAtTime(900, now + 0.1);
+                        cg.gain.setValueAtTime(0.15, now);
+                        cg.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                        c.start(now);
+                        c.stop(now + 0.15);
                         break;
+
                     case 'attack':
-                        oscillator.type = 'sawtooth';
-                        oscillator.frequency.setValueAtTime(100, now);
-                        oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.3);
-                        gainNode.gain.setValueAtTime(0.2, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.3);
+                        // 攻击音效：低频轰鸣，压迫感
+                        const a = ctx.createOscillator();
+                        const ag = ctx.createGain();
+                        a.type = 'sawtooth';
+                        a.connect(ag);
+                        ag.connect(ctx.destination);
+                        a.frequency.setValueAtTime(120, now);
+                        a.frequency.exponentialRampToValueAtTime(40, now + 0.35);
+                        ag.gain.setValueAtTime(0.2, now);
+                        ag.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                        a.start(now);
+                        a.stop(now + 0.35);
                         break;
+
                     case 'win':
-                        const notes = [523, 659, 784, 1047];
-                        notes.forEach((freq, i) => {
+                        // 胜利：上行琶音 C5→E5→G5→C6
+                        [523, 659, 784, 1047].forEach((freq, i) => {
                             const osc = ctx.createOscillator();
-                            const gain = ctx.createGain();
-                            osc.connect(gain);
-                            gain.connect(ctx.destination);
+                            const g = ctx.createGain();
+                            osc.connect(g);
+                            g.connect(ctx.destination);
+                            osc.frequency.setValueAtTime(freq, now + i * 0.12);
+                            osc.type = i % 2 === 0 ? 'square' : 'triangle';
+                            g.gain.setValueAtTime(0.15, now + i * 0.12);
+                            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+                            osc.start(now + i * 0.12);
+                            osc.stop(now + i * 0.12 + 0.25);
+                        });
+                        break;
+
+                    case 'lose':
+                        // 失败：下行琶音
+                        [400, 300, 200, 100].forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g);
+                            g.connect(ctx.destination);
                             osc.frequency.setValueAtTime(freq, now + i * 0.15);
-                            gain.gain.setValueAtTime(0.15, now + i * 0.15);
-                            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.3);
+                            osc.type = 'sawtooth';
+                            g.gain.setValueAtTime(0.15, now + i * 0.15);
+                            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.3);
                             osc.start(now + i * 0.15);
                             osc.stop(now + i * 0.15 + 0.3);
                         });
-                        break;
-                    case 'lose':
-                        oscillator.type = 'sawtooth';
-                        oscillator.frequency.setValueAtTime(400, now);
-                        oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.5);
-                        gainNode.gain.setValueAtTime(0.15, now);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.5);
                         break;
                 }
             },
@@ -1173,12 +1228,21 @@
             
             // 每帧同步状态给对方，包含队列里下一个要出的方块
             if (socket && !localTetris.gameOver) {
-                socket.emit('state_update', {
-                    board: localTetris.board,
-                    player: localTetris.player,
-                    score: localTetris.score,
-                    nextPiece: localTetris.pieceQueue[0]
-                });
+                // 发送前校验数据结构
+                const board = localTetris.board;
+                const player = localTetris.player;
+                if (board && Array.isArray(board) && board.length === ROWS &&
+                    player && player.pos && typeof player.score === 'number') {
+                    socket.emit('state_update', {
+                        board: board,
+                        player: {
+                            pos: { x: player.pos.x, y: player.pos.y },
+                            score: player.score
+                        },
+                        score: localTetris.score,
+                        nextPiece: localTetris.pieceQueue[0]
+                    });
+                }
             }
             
             // 使用 setTimeout 替代 requestAnimationFrame，以确保页面在后台时仍然运行
@@ -1384,7 +1448,7 @@
                     localTetris.playerMove(1);
                     break;
                 case 40: case 83: // Down, S
-                    localTetris.playerDrop();
+                    localTetris.playerDrop(true);
                     break;
                 case 38: case 87: // Up, W
                     localTetris.playerRotate(1);
@@ -1392,7 +1456,6 @@
                 case 32: // Space
                     event.preventDefault(); // 阻止空格键的默认滚动行为
                     localTetris.playerHardDrop();
-                    SoundManager.play('drop');
                     break;
             }
             localTetris.draw();
@@ -1416,7 +1479,7 @@
         bindBtn('btn-up', () => localTetris.playerRotate(1));
         bindBtn('btn-left', () => localTetris.playerMove(-1));
         bindBtn('btn-right', () => localTetris.playerMove(1));
-        bindBtn('btn-down', () => localTetris.playerDrop());
+        bindBtn('btn-down', () => localTetris.playerDrop(true));
         bindBtn('btn-space', () => localTetris.playerHardDrop());
 
         // 页面加载时检查 URL 参数
@@ -1525,6 +1588,9 @@
                 update(performance.now());
             });
 
+            // 对手上一次得分（用于计算消除行数）
+            let opPrevScore = null;
+
             socket.on('op_state', data => {
                 if (!gameActive) return;
 
@@ -1532,25 +1598,35 @@
                 if (data.board && Array.isArray(data.board) &&
                     data.board.length === ROWS &&
                     data.board[0] && data.board[0].length === COLS) {
-                    // 对手消除行数检测：对比两帧棋盘的总已填充格子数
-                    if (opPrevBoard) {
-                        const prevFilled = opPrevBoard.flat().filter(v => v !== 0).length;
-                        const currFilled = data.board.flat().filter(v => v !== 0).length;
-                        // 填充数骤降 → 对方消行了。每消1行约减少 COLS 个格子
-                        const dropped = prevFilled - currFilled;
-                        if (dropped >= COLS) {
-                            const linesAdded = Math.round(dropped / COLS);
-                            gameStats.opponentLines += linesAdded;
-                            gameStats.opponentPieces++;
-                            if (linesAdded >= 2) {
-                                gameStats.opponentCombo++;
-                                gameStats.opponentMaxCombo = Math.max(gameStats.opponentMaxCombo, gameStats.opponentCombo);
-                            } else {
-                                gameStats.opponentCombo = 0;
+
+                    // 对手消除行数检测：使用得分差值来估算（更可靠）
+                    if (typeof data.score === 'number' && data.score >= 0) {
+                        if (opPrevScore !== null && data.score > opPrevScore) {
+                            // 每消除 1 行约增加 10 分基础分（单行 10 分，倍数递增）
+                            // 单行: 10, 双行: 30, 三行: 60, 四行: 100
+                            const scoreDiff = data.score - opPrevScore;
+                            // 根据得分差估算消除行数
+                            let estimatedLines = 0;
+                            if (scoreDiff >= 100) estimatedLines = 4;
+                            else if (scoreDiff >= 60) estimatedLines = 3;
+                            else if (scoreDiff >= 30) estimatedLines = 2;
+                            else if (scoreDiff >= 10) estimatedLines = 1;
+
+                            if (estimatedLines > 0) {
+                                gameStats.opponentLines += estimatedLines;
+                                gameStats.opponentPieces++;
+                                if (estimatedLines >= 2) {
+                                    gameStats.opponentCombo++;
+                                    gameStats.opponentMaxCombo = Math.max(gameStats.opponentMaxCombo, gameStats.opponentCombo);
+                                } else {
+                                    gameStats.opponentCombo = 0;
+                                }
+                                updateStats();
                             }
-                            updateStats();
                         }
+                        opPrevScore = data.score;
                     }
+
                     opPrevBoard = data.board.map(row => [...row]);
                     opTetris.board = data.board;
                 }
@@ -1565,7 +1641,6 @@
                 }
                 opTetris.updateScore();
                 opTetris.draw();
-                // 更新对手统计数据
                 updateStats();
             });
 
@@ -1580,6 +1655,13 @@
             socket.on('op_game_over', () => {
                 stopGameLoop();
                 SoundManager.play('win');
+                // 重置对手棋盘状态（清理残留方块）
+                if (opTetris) {
+                    opTetris.board = opTetris.createMatrix(COLS, ROWS);
+                    opTetris.score = 0;
+                    opTetris.updateScore();
+                    opTetris.draw();
+                }
                 showStatus('你赢啦！！对方被你打败了！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
             });
             

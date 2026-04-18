@@ -52,6 +52,21 @@ io.on('connection', (socket) => {
 
     socket.on('state_update', (state) => {
         if (!socket.roomId) return;
+        // 数据校验：检查 state 对象的基本结构
+        if (!state || typeof state !== 'object') return;
+
+        // 校验 board: 必须是 ROWS×COLS 的二维数组
+        const isValidBoard = Array.isArray(state.board) &&
+            state.board.length === 20 &&
+            state.board.every(row => Array.isArray(row) && row.length === 12);
+        if (!isValidBoard) return;
+
+        // 校验 score: 必须是合理的非负整数（上限 9999999）
+        if (typeof state.score !== 'number' || state.score < 0 || state.score > 9999999 || !Number.isFinite(state.score)) return;
+
+        // 校验 player: 至少要有 pos 结构
+        if (!state.player || !state.player.pos || typeof state.player.pos.x !== 'number' || typeof state.player.pos.y !== 'number') return;
+
         socket.to(socket.roomId).emit('op_state', state);
     });
 
