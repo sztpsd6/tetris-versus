@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
+const mysql = require('mysql2');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,6 +12,90 @@ const io = new Server(server, {
     pingInterval: 10000,     // 心跳间隔保持 10 秒
     transports: ['websocket', 'polling'] // 允许降级轮询
 });
+
+// MySQL 数据库连接
+const db = mysql.createPool({
+    host: '85.137.245.155',
+    user: 'root',
+    password: 'mysql_GtDSiB',
+    database: 'tetris_versus',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    ssl: false // 禁用SSL
+});
+
+// 创建数据库和表（如果不存在）
+function initDatabase() {
+    const createDbSql = 'CREATE DATABASE IF NOT EXISTS tetris_versus';
+    db.query(createDbSql, (err) => {
+        if (err) {
+            console.error('数据库创建失败:', err.message);
+        } else {
+            console.log('✓ 数据库 tetris_versus 创建成功');
+        }
+    });
+
+    const createSoloTableSql = `
+        CREATE TABLE IF NOT EXISTS solo_ranking (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL DEFAULT '匿名者',
+            score INT NOT NULL,
+            game_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_score (score DESC)
+        )
+    `;
+
+    const createPvpTableSql = `
+        CREATE TABLE IF NOT EXISTS pvp_ranking (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            player1_name VARCHAR(50) NOT NULL DEFAULT '匿名者',
+            player2_name VARCHAR(50) NOT NULL DEFAULT '匿名者',
+            total_score INT NOT NULL,
+            game_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_total_score (total_score DESC)
+        )
+    `;
+
+    db.query(createSoloTableSql, (err) => {
+        if (err) {
+            console.error('单人排名表创建失败:', err.message);
+        } else {
+            console.log('✓ 单人排名表 solo_ranking 创建成功');
+        }
+    });
+
+    db.query(createPvpTableSql, (err) => {
+        if (err) {
+            console.error('双人排名表创建失败:', err.message);
+        } else {
+            console.log('✓ 双人排名表 pvp_ranking 创建成功');
+        }
+    });
+}
+
+// 测试数据库连接
+function testConnection() {
+    db.getConnection((err, connection) => {
+        if (err) {
+            console.error('✗ 数据库连接失败:', err.message);
+            console.error('请检查MySQL密码是否正确');
+            process.exit(1);
+        } else {
+            console.log('✓ 数据库连接成功');
+            connection.release();
+            initDatabase();
+        }
+    });
+}
+
+testConnection();
+
+// 解析 JSON 请求体
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static('public'));
 
@@ -23,6 +108,88 @@ app.get('/api/changelog', (req, res) => {
     } catch (e) {
         res.status(500).json({ error: '无法读取更新日志' });
     }
+});
+
+// API: 保存单人分数
+app.post('/api/save_solo_score', (req, res) => {
+    const { username, score, gameDate } = req.body;
+    const sql = 'INSERT INTO solo_ranking (username, score, game_date) VALUES (?, ?, ?)';
+    db.query(sql, [username || '匿名者', score, gameDate || new Date().toISOString().split('T')[0]], (err) => {
+        if (err) {
+            console.log('保存单人分数失败:', err.message);
+            res.status(500).json({ success: false, error: '保存失败' });
+        } else {
+            res.json({ success: true });
+        }
+    });
+});
+
+// API: 获取单人排名
+app.get('/api/get_solo_ranking', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 100;
+    const offset = (page - 1) * limit;
+    
+    const sqlCount = 'SELECT COUNT(*) as total FROM solo_ranking';
+    const sqlData = 'SELECT username, score, game_date, created_at FROM solo_ranking ORDER BY score DESC LIMIT ? OFFSET ?';
+    
+    db.query(sqlCount, (err, countResult) => {
+        if (err) {
+            console.log('获取单人排名失败:', err.message);
+            res.status(500).json({ success: false, error: '获取失败' });
+            return;
+        }
+        
+        db.query(sqlData, [limit, offset], (err, results) => {
+            if (err) {
+                console.log('获取单人排名失败:', err.message);
+                res.status(500).json({ success: false, error: '获取失败' });
+            } else {
+                res.json({ success: true, data: results, total: countResult[0].total, page, limit });
+            }
+        });
+    });
+});
+
+// API: 保存双人分数
+app.post('/api/save_pvp_score', (req, res) => {
+    const { player1Name, player2Name, totalScore, gameDate } = req.body;
+    const sql = 'INSERT INTO pvp_ranking (player1_name, player2_name, total_score, game_date) VALUES (?, ?, ?, ?)';
+    db.query(sql, [player1Name || '匿名者', player2Name || '匿名者', totalScore, gameDate || new Date().toISOString().split('T')[0]], (err) => {
+        if (err) {
+            console.log('保存双人分数失败:', err.message);
+            res.status(500).json({ success: false, error: '保存失败' });
+        } else {
+            res.json({ success: true });
+        }
+    });
+});
+
+// API: 获取双人排名
+app.get('/api/get_pvp_ranking', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 100;
+    const offset = (page - 1) * limit;
+    
+    const sqlCount = 'SELECT COUNT(*) as total FROM pvp_ranking';
+    const sqlData = 'SELECT player1_name, player2_name, total_score, game_date, created_at FROM pvp_ranking ORDER BY total_score DESC LIMIT ? OFFSET ?';
+    
+    db.query(sqlCount, (err, countResult) => {
+        if (err) {
+            console.log('获取双人排名失败:', err.message);
+            res.status(500).json({ success: false, error: '获取失败' });
+            return;
+        }
+        
+        db.query(sqlData, [limit, offset], (err, results) => {
+            if (err) {
+                console.log('获取双人排名失败:', err.message);
+                res.status(500).json({ success: false, error: '获取失败' });
+            } else {
+                res.json({ success: true, data: results, total: countResult[0].total, page, limit });
+            }
+        });
+    });
 });
 
 const rooms = {};

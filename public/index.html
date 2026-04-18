@@ -668,6 +668,7 @@
             提示: 现在可以拖动屏幕上的摇杆和按钮区域了
         </div>
         <button class="action-btn" id="btn-reset-layout" style="display: none; padding: 8px; font-size: 14px; margin-top: 10px;">恢复默认布局</button>
+        <button class="action-btn" id="btn-ranking" style="padding: 8px; font-size: 14px; margin-top: 10px; background-color: #f39c12;">🏆 排行榜</button>
         <button class="action-btn" id="btn-changelog" style="padding: 8px; font-size: 14px; margin-top: 10px;">更新日志</button>
     </div>
 
@@ -781,6 +782,35 @@
             <button class="modal-close" id="changelog-close">&times;</button>
             <h2 class="modal-title">更新日志</h2>
             <div id="changelog-body" class="cl-loading">加载中...</div>
+        </div>
+    </div>
+
+    <!-- 排行榜弹窗 -->
+    <div id="ranking-modal-page" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: #2c3e50; border: 2px solid #f1c40f; border-radius: 10px; padding: 20px; max-width: 600px; width: 90%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); max-height: 80vh; overflow-y: auto;">
+            <button id="ranking-modal-close" style="position: absolute; top: 10px; right: 15px; background: none; border: none; color: #7f8c8d; font-size: 28px; cursor: pointer;">&times;</button>
+            <h2 style="color: #f1c40f; margin-top: 0; margin-bottom: 15px;">🏆 排行榜</h2>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="btn-solo-ranking" class="action-btn" style="flex: 1; padding: 10px; font-size: 14px; background-color: #3498db;">单人排行</button>
+                <button id="btn-pvp-ranking" class="action-btn" style="flex: 1; padding: 10px; font-size: 14px; background-color: #9b59b6;">双人对战</button>
+            </div>
+
+            <div id="ranking-info" style="color: #ecf0f1; margin-bottom: 10px; font-size: 14px;"></div>
+
+            <div id="ranking-list" style="background: rgba(0,0,0,0.3); border-radius: 5px; padding: 10px; max-height: 400px; overflow-y: auto; text-align: left;">
+                <div style="text-align: center; color: #7f8c8d; padding: 20px;">加载中...</div>
+            </div>
+
+            <div id="ranking-pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px;">
+                <button id="ranking-prev" class="action-btn" style="padding: 8px 15px; font-size: 12px; background-color: #95a5a6;">上一页</button>
+                <span id="ranking-page-info" style="color: #ecf0f1; font-size: 14px;">1 / 1</span>
+                <button id="ranking-next" class="action-btn" style="padding: 8px 15px; font-size: 12px; background-color: #95a5a6;">下一页</button>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: 10px;">
+                    <input type="number" id="ranking-page-input" min="1" style="width: 60px; padding: 6px; font-size: 12px; text-align: center; border-radius: 4px; border: 1px solid #34495e; background: #34495e; color: #ecf0f1;">
+                    <button id="ranking-go-page" class="action-btn" style="padding: 6px 12px; font-size: 12px;">跳转</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1113,7 +1143,26 @@
             }
         }
 
-        // === 游戏主循环控制 ===
+        // 排名弹窗 HTML
+        const rankingModalHTML = `
+            <div id="ranking-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+                <div style="background: #2c3e50; border: 2px solid #f1c40f; border-radius: 10px; padding: 30px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+                    <h2 id="ranking-title" style="color: #f1c40f; margin-top: 0;">恭喜达到新高分！</h2>
+                    <p id="ranking-desc" style="color: #ecf0f1; margin-bottom: 20px;">请输入你的用户名：</p>
+                    <input type="text" id="ranking-username" placeholder="输入用户名（默认：匿名者）" maxlength="20" style="padding: 12px; font-size: 16px; border-radius: 5px; border: 2px solid #34495e; text-align: center; width: 100%; margin-bottom: 15px; box-sizing: border-box;">
+                    <div id="player2-name-container" style="display: none; margin-bottom: 15px;">
+                        <p style="color: #3498db; margin: 10px 0;"> opponent's name:</p>
+                        <input type="text" id="ranking-player2-name" placeholder="输入对手用户名" maxlength="20" style="padding: 12px; font-size: 16px; border-radius: 5px; border: 2px solid #34495e; text-align: center; width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div id="ranking-score-display" style="color: #e74c3c; font-size: 24px; font-weight: bold; margin-bottom: 20px;">0</div>
+                    <button id="ranking-submit" class="action-btn" style="background-color: #27ae60;">保存排名</button>
+                    <button id="ranking-cancel" class="action-btn" style="background-color: #95a5a6; margin-top: 10px;">取消</button>
+                </div>
+            </div>
+        `;
+
+        // 插入排名弹窗
+        document.body.insertAdjacentHTML('beforeend', rankingModalHTML);
         let socket;
         let localTetris;
         let opTetris;
@@ -1122,6 +1171,7 @@
         let lastTime = 0;
         let gameActive = false;
         let gameLoopTimer = null; // 用于存储 setTimeout
+        let gameMode = 'None'; // None, Solo, PvP
 
         // 游戏统计
         const gameStats = {
@@ -1133,7 +1183,8 @@
             opponentLines: 0,
             opponentPieces: 0,
             opponentCombo: 0,
-            opponentMaxCombo: 0
+            opponentMaxCombo: 0,
+            totalScore: 0
         };
 
         let statsPanelVisible = false;
@@ -1318,7 +1369,13 @@
             { level: 7, interval: 400 },
             { level: 8, interval: 300 },
             { level: 9, interval: 200 },
-            { level: 10, interval: 100 }
+            { level: 10, interval: 150 },
+            { level: 11, interval: 100 },
+            { level: 12, interval: 90 },
+            { level: 13, interval: 80 },
+            { level: 14, interval: 70 },
+            { level: 15, interval: 65 },
+            { level: 16, interval: 60 },
         ];
 
         function getSpeedInterval(level) {
@@ -1361,6 +1418,39 @@
             const el = document.getElementById('game-over');
             el.innerHTML = msg;
             el.style.display = 'block';
+        }
+
+        // 显示排名弹窗
+        function showRankingModal(score, mode, opponentScore = 0) {
+            const modal = document.getElementById('ranking-modal');
+            const title = document.getElementById('ranking-title');
+            const desc = document.getElementById('ranking-desc');
+            const scoreDisplay = document.getElementById('ranking-score-display');
+            const player2Container = document.getElementById('player2-name-container');
+            const usernameInput = document.getElementById('ranking-username');
+            const player2Input = document.getElementById('ranking-player2-name');
+
+            gameStats.totalScore = mode === 'PvP' ? score + opponentScore : score;
+
+            if (mode === 'PvP') {
+                title.textContent = '双人对战高分组合！';
+                desc.textContent = `双方总分：${gameStats.totalScore}，请输入双方用户名：`;
+                scoreDisplay.textContent = `总分: ${gameStats.totalScore}`;
+                player2Container.style.display = 'block';
+                usernameInput.placeholder = '输入你的用户名';
+                player2Input.placeholder = '输入对手用户名';
+            } else {
+                title.textContent = '单人模式新高分！';
+                desc.textContent = '恭喜达到1000分以上！请输入你的用户名：';
+                scoreDisplay.textContent = `分数: ${score}`;
+                player2Container.style.display = 'none';
+                usernameInput.placeholder = '输入用户名（默认：匿名者）';
+                player2Input.value = '';
+            }
+
+            usernameInput.value = '';
+            modal.style.display = 'flex';
+            usernameInput.focus();
         }
 
         function update(time = performance.now()) {
@@ -1641,6 +1731,226 @@
             document.getElementById('room-id').value = roomParam;
         }
 
+        // 排名弹窗相关
+        const rankingModal = document.getElementById('ranking-modal');
+        const rankingSubmitBtn = document.getElementById('ranking-submit');
+        const rankingCancelBtn = document.getElementById('ranking-cancel');
+
+        // 保存排名
+        rankingSubmitBtn.addEventListener('click', async () => {
+            const username = document.getElementById('ranking-username').value.trim();
+            let player2Name = '';
+            if (gameMode === 'PvP') {
+                player2Name = document.getElementById('ranking-player2-name').value.trim();
+            }
+
+            const gameDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+            try {
+                if (gameMode === 'Solo') {
+                    await fetch('/api/save_solo_score', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, score: gameStats.totalScore, gameDate })
+                    });
+                } else if (gameMode === 'PvP') {
+                    await fetch('/api/save_pvp_score', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            player1Name: username, 
+                            player2Name: player2Name, 
+                            totalScore: gameStats.totalScore,
+                            gameDate
+                        })
+                    });
+                }
+
+                rankingModal.style.display = 'none';
+                
+                // 显示成功消息
+                const successMsg = gameMode === 'Solo' 
+                    ? '单人分数已保存到排名！' 
+                    : '双人分数已保存到排名！';
+                
+                showStatus(successMsg + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+            } catch (error) {
+                alert('保存失败，请稍后重试');
+                console.error('保存排名失败:', error);
+            }
+        });
+
+        // 取消保存
+        rankingCancelBtn.addEventListener('click', () => {
+            rankingModal.style.display = 'none';
+            
+            if (gameMode === 'Solo') {
+                showStatus('游戏结束！<br>得分: ' + localTetris.score + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+            } else {
+                showStatus('游戏结束！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+            }
+        });
+
+        // === 排行榜功能 ===
+        let currentRankingType = 'solo'; // 'solo' or 'pvp'
+        let currentRankingPage = 1;
+        const rankingPageSize = 100;
+        let totalRankingCount = 0;
+        let rankingData = [];
+
+        const rankingModalPage = document.getElementById('ranking-modal-page');
+        const btnRanking = document.getElementById('btn-ranking');
+        const rankingModalClose = document.getElementById('ranking-modal-close');
+        const btnSoloRanking = document.getElementById('btn-solo-ranking');
+        const btnPvpRanking = document.getElementById('btn-pvp-ranking');
+        const rankingList = document.getElementById('ranking-list');
+        const rankingInfo = document.getElementById('ranking-info');
+        const rankingPageInfo = document.getElementById('ranking-page-info');
+        const rankingPrev = document.getElementById('ranking-prev');
+        const rankingNext = document.getElementById('ranking-next');
+        const rankingPageInput = document.getElementById('ranking-page-input');
+        const rankingGoPage = document.getElementById('ranking-go-page');
+
+        // 打开排行榜
+        btnRanking.addEventListener('click', () => {
+            rankingModalPage.style.display = 'flex';
+            loadRanking('solo', 1);
+        });
+
+        // 关闭排行榜
+        rankingModalClose.addEventListener('click', () => {
+            rankingModalPage.style.display = 'none';
+        });
+
+        rankingModalPage.addEventListener('click', (e) => {
+            if (e.target === rankingModalPage) {
+                rankingModalPage.style.display = 'none';
+            }
+        });
+
+        // 切换排行类型
+        btnSoloRanking.addEventListener('click', () => {
+            loadRanking('solo', 1);
+        });
+
+        btnPvpRanking.addEventListener('click', () => {
+            loadRanking('pvp', 1);
+        });
+
+        // 翻页
+        rankingPrev.addEventListener('click', () => {
+            if (currentRankingPage > 1) {
+                loadRanking(currentRankingType, currentRankingPage - 1);
+            }
+        });
+
+        rankingNext.addEventListener('click', () => {
+            const totalPages = Math.ceil(totalRankingCount / rankingPageSize);
+            if (currentRankingPage < totalPages) {
+                loadRanking(currentRankingType, currentRankingPage + 1);
+            }
+        });
+
+        // 页码跳转
+        rankingGoPage.addEventListener('click', () => {
+            const page = parseInt(rankingPageInput.value);
+            const totalPages = Math.ceil(totalRankingCount / rankingPageSize);
+            if (page && page >= 1 && page <= totalPages) {
+                loadRanking(currentRankingType, page);
+                rankingPageInput.value = '';
+            } else {
+                alert(`请输入 1-${totalPages} 之间的页码`);
+            }
+        });
+
+        // 回车键跳转
+        rankingPageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                rankingGoPage.click();
+            }
+        });
+
+        // 加载排行榜数据
+        function loadRanking(type, page) {
+            currentRankingType = type;
+            currentRankingPage = page;
+
+            // 更新按钮样式
+            btnSoloRanking.style.backgroundColor = type === 'solo' ? '#3498db' : '#95a5a6';
+            btnPvpRanking.style.backgroundColor = type === 'pvp' ? '#9b59b6' : '#95a5a6';
+
+            rankingList.innerHTML = '<div style="text-align: center; color: #7f8c8d; padding: 20px;">加载中...</div>';
+
+            const apiUrl = type === 'solo' ? `/api/get_solo_ranking?page=${page}` : `/api/get_pvp_ranking?page=${page}`;
+            
+            fetch(apiUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        rankingData = data.data || [];
+                        totalRankingCount = data.total || rankingData.length;
+                        renderRanking();
+                    } else {
+                        rankingList.innerHTML = '<div style="text-align: center; color: #e74c3c; padding: 20px;">加载失败</div>';
+                    }
+                })
+                .catch(err => {
+                    console.error('加载排行榜失败:', err);
+                    rankingList.innerHTML = '<div style="text-align: center; color: #e74c3c; padding: 20px;">加载失败</div>';
+                });
+        }
+
+        // 渲染排行榜
+        function renderRanking() {
+            const totalPages = Math.max(1, Math.ceil(totalRankingCount / rankingPageSize));
+            const startIndex = (currentRankingPage - 1) * rankingPageSize;
+            const endIndex = Math.min(startIndex + rankingPageSize, totalRankingCount);
+
+            rankingInfo.textContent = `共 ${totalRankingCount} 条数据 | 显示 ${startIndex + 1}-${endIndex}`;
+            rankingPageInfo.textContent = `${currentRankingPage} / ${totalPages}`;
+
+            rankingPrev.disabled = currentRankingPage <= 1;
+            rankingNext.disabled = currentRankingPage >= totalPages;
+            rankingPrev.style.opacity = rankingPrev.disabled ? '0.5' : '1';
+            rankingNext.style.opacity = rankingNext.disabled ? '0.5' : '1';
+
+            if (rankingData.length === 0) {
+                rankingList.innerHTML = '<div style="text-align: center; color: #7f8c8d; padding: 20px;">暂无数据</div>';
+                return;
+            }
+
+            let html = '';
+            rankingData.forEach((item, index) => {
+                const globalRank = startIndex + index + 1;
+                let rankIcon = globalRank === 1 ? '🥇' : globalRank === 2 ? '🥈' : globalRank === 3 ? '🥉' : `${globalRank}.`;
+                
+                // 日期格式化为 YYYY-MM-DD
+                const dateStr = item.game_date ? item.game_date.substring(0, 10) : '';
+                
+                if (currentRankingType === 'solo') {
+                    html += `
+                        <div style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #34495e; color: #ecf0f1;">
+                            <span style="width: 40px; font-size: 16px; font-weight: bold; color: ${globalRank <= 3 ? '#f1c40f' : '#7f8c8d'};">${rankIcon}</span>
+                            <span style="flex: 1; font-weight: bold;">${item.username}</span>
+                            <span style="color: #e74c3c; font-weight: bold; margin: 0 10px;">${item.score} 分</span>
+                            <span style="color: #7f8c8d; font-size: 12px;">${dateStr}</span>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #34495e; color: #ecf0f1;">
+                            <span style="width: 40px; font-size: 16px; font-weight: bold; color: ${globalRank <= 3 ? '#f1c40f' : '#7f8c8d'};">${rankIcon}</span>
+                            <span style="flex: 1; font-size: 13px;">${item.player1_name} & ${item.player2_name}</span>
+                            <span style="color: #9b59b6; font-weight: bold; margin: 0 10px;">${item.total_score} 分</span>
+                            <span style="color: #7f8c8d; font-size: 12px;">${dateStr}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            rankingList.innerHTML = html;
+        }
+
         // 加入房间
         document.getElementById('join-btn').addEventListener('click', () => {
             const roomId = document.getElementById('room-id').value;
@@ -1816,7 +2126,15 @@
                     opTetris.updateScore();
                     opTetris.draw();
                 }
-                showStatus('你赢啦！！对方被你打败了！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                
+                // 检查总分是否达到2000
+                const totalScore = localTetris.score + opTetris.score;
+                if (totalScore >= 2000) {
+                    gameMode = 'PvP';
+                    showRankingModal(localTetris.score, 'PvP', opTetris.score);
+                } else {
+                    showStatus('你赢啦！！对方被你打败了！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                }
             });
             
             socket.on('op_disconnected', () => {
@@ -1893,7 +2211,14 @@
             if (localTetris.gameOver) {
                 stopGameLoop();
                 SoundManager.play('lose');
-                showStatus('游戏结束！<br>得分: ' + localTetris.score + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                
+                // 检查是否达到1000分
+                if (localTetris.score >= 10) {
+                    gameMode = 'Solo';
+                    showRankingModal(localTetris.score, 'Solo');
+                } else {
+                    showStatus('游戏结束！<br>得分: ' + localTetris.score + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                }
                 return;
             }
 

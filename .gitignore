@@ -11,3 +11,6 @@ yarn-error.log*
 /deploy_ui.py
 /output.txt
 /codereview/
+/测试.py
+/RANKING_FEATURE.md
+/测试/
