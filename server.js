@@ -4,7 +4,11 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    pingTimeout: 30000,      // 心跳超时时间延长到 30 秒 (默认 20 秒)
+    pingInterval: 10000,     // 心跳间隔保持 10 秒
+    transports: ['websocket', 'polling'] // 允许降级轮询
+});
 
 app.use(express.static('public'));
 

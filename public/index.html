@@ -206,9 +206,9 @@
         }
 
         /* D-Pad 排版 */
-        #btn-left { grid-column: 1; grid-row: 2; }
-        #btn-down { grid-column: 2; grid-row: 2; }
-        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-left { grid-column: 1; grid-row: 1; }
+        #btn-down { grid-column: 2; grid-row: 2; } /* 下移到第二行，在空格正上方 */
+        #btn-right { grid-column: 3; grid-row: 1; }
 
         .status-bar {
             position: absolute;
@@ -290,6 +290,19 @@
     </div>
 
     <h1>Tetris Battle</h1>
+
+            <!-- 对手 (绝对定位在右上方缩放) -->
+        <div class="player-area opponent-area">
+            <div class="player-name">对方</div>
+            <div class="score-board">分数: <span id="op-score">0</span></div>
+            <div class="main-game-container">
+                <canvas id="op-canvas" width="240" height="400"></canvas>
+                <div class="preview-area">
+                    <canvas id="op-preview" class="preview-canvas" width="40" height="40"></canvas>
+                </div>
+            </div>
+        </div>
+
     <div id="connection-status">等待对手加入...</div>
 
     <div class="game-wrapper">
@@ -313,17 +326,6 @@
             </div>
         </div>
 
-        <!-- 对手 (绝对定位在右上方缩放) -->
-        <div class="player-area opponent-area">
-            <div class="player-name">对方</div>
-            <div class="score-board">分数: <span id="op-score">0</span></div>
-            <div class="main-game-container">
-                <canvas id="op-canvas" width="240" height="400"></canvas>
-                <div class="preview-area">
-                    <canvas id="op-preview" class="preview-canvas" width="40" height="40"></canvas>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- 移动端控制按钮 (左摇杆 右动作) -->
@@ -549,7 +551,7 @@
                 }
             }
 
-            playerDrop() {
+            playerDrop(resetTimer = true) {
                 this.player.pos.y++;
                 if (this.collide(this.board, this.player)) {
                     this.player.pos.y--;
@@ -557,7 +559,9 @@
                     this.reset();
                     this.sweep();
                 }
-                dropCounter = 0;
+                if (resetTimer) {
+                    dropCounter = 0;
+                }
             }
             
             playerHardDrop() {
@@ -644,6 +648,7 @@
         let dropInterval = 1000;
         let lastTime = 0;
         let gameActive = false;
+        let gameLoopTimer = null; // 用于存储 setTimeout
 
         function showStatus(msg) {
             const el = document.getElementById('game-over');
@@ -651,15 +656,17 @@
             el.style.display = 'block';
         }
 
-        function update(time = 0) {
+        function update(time = performance.now()) {
             if (!gameActive) return;
             
             const deltaTime = time - lastTime;
             lastTime = time;
             
             dropCounter += deltaTime;
-            if (dropCounter > dropInterval) {
-                localTetris.playerDrop();
+            while (dropCounter > dropInterval) {
+                localTetris.playerDrop(false);
+                dropCounter -= dropInterval;
+                if (!gameActive || localTetris.gameOver) break;
             }
             
             localTetris.draw();
@@ -674,7 +681,8 @@
                 });
             }
             
-            requestAnimationFrame(update);
+            // 使用 setTimeout 替代 requestAnimationFrame，以确保页面在后台时仍然运行
+            gameLoopTimer = setTimeout(() => update(performance.now()), 1000 / 60); // 约60帧
         }
 
         // 键盘事件监听 (支持方向键和 WASD)
@@ -721,10 +729,21 @@
         bindBtn('btn-down', () => localTetris.playerDrop());
         bindBtn('btn-space', () => localTetris.playerHardDrop());
 
+        // 页面加载时检查 URL 参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            document.getElementById('room-id').value = roomParam;
+        }
+
         // 加入房间
         document.getElementById('join-btn').addEventListener('click', () => {
             const roomId = document.getElementById('room-id').value;
             if (!roomId) return;
+
+            // 更新 URL 方便分享
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomId;
+            window.history.replaceState({path: newUrl}, '', newUrl);
 
             document.getElementById('start-screen').style.display = 'none';
             
@@ -734,10 +753,35 @@
             localTetris.draw();
             opTetris.draw();
 
-            // 连接 WebSocket
-            socket = io();
+            // 连接 WebSocket (添加重连和心跳配置)
+            socket = io({
+                reconnection: true,             // 开启自动重连
+                reconnectionAttempts: 10,       // 尝试重连10次
+                reconnectionDelay: 1000,        // 每次重连间隔1秒
+                reconnectionDelayMax: 5000,     // 最大重连间隔5秒
+                timeout: 20000                  // 连接超时20秒
+            });
             
             socket.emit('join_room', roomId);
+            
+            // 监听重连事件
+            socket.on('connect', () => {
+                if (gameActive) {
+                    document.getElementById('connection-status').innerText = '重连成功，继续游戏！';
+                    document.getElementById('connection-status').style.color = '#2ecc71';
+                }
+            });
+
+            socket.on('disconnect', (reason) => {
+                if (reason === 'io server disconnect') {
+                    // 服务器主动断开，需要手动重连
+                    socket.connect();
+                }
+                if (gameActive) {
+                    document.getElementById('connection-status').innerText = '网络波动，正在重连...';
+                    document.getElementById('connection-status').style.color = '#e74c3c';
+                }
+            });
             
             socket.on('waiting', () => {
                 document.getElementById('connection-status').innerText = '等待对方加入... 快把房间号告诉她！';
@@ -748,8 +792,11 @@
                 document.getElementById('connection-status').style.color = '#2ecc71';
                 gameActive = true;
                 
+                // 清除可能存在的旧定时器
+                if (gameLoopTimer) clearTimeout(gameLoopTimer);
+                
                 // 重置时间，防止第一下直接掉落
-                lastTime = 0;
+                lastTime = performance.now();
                 
                 localTetris.board = localTetris.createMatrix(COLS, ROWS);
                 localTetris.score = 0;
@@ -761,7 +808,7 @@
                 opTetris.updateScore();
                 
                 // 启动游戏循环
-                requestAnimationFrame(update);
+                update(performance.now());
             });
 
             socket.on('op_state', data => {
@@ -785,8 +832,17 @@
             });
             
             socket.on('op_disconnected', () => {
-                gameActive = false;
-                showStatus('对方掉线了...<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">刷新页面</button>');
+                // 不直接结束游戏，给对方几秒钟重连时间
+                document.getElementById('connection-status').innerText = '对方网络不佳，等待重连中...';
+                document.getElementById('connection-status').style.color = '#e67e22';
+                
+                // 如果对方10秒后还没连回来，再判断为掉线
+                setTimeout(() => {
+                    if (document.getElementById('connection-status').innerText === '对方网络不佳，等待重连中...') {
+                        gameActive = false;
+                        showStatus('对方彻底掉线了...<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">刷新页面</button>');
+                    }
+                }, 10000);
             });
         });
     </script>
