@@ -62,6 +62,7 @@
             text-align: left;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
+            min-width: 200px;
         }
 
         .setting-item {
@@ -74,6 +75,133 @@
 
         .setting-item:last-child {
             margin-bottom: 0;
+        }
+
+        /* 游戏统计面板样式 */
+        .stats-panel {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            background: rgba(44, 62, 80, 0.95);
+            border: 1px solid #34495e;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 1000;
+            text-align: left;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+            min-width: 120px;
+        }
+
+        .stats-panel h3 {
+            margin: 0 0 8px 0;
+            color: #f1c40f;
+            font-size: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        .stat-row .stat-label {
+            color: #7f8c8d;
+            width: 36px;
+        }
+
+        .stat-row .stat-val-left {
+            color: #2ecc71;
+            font-weight: bold;
+            text-align: right;
+            flex: 1;
+        }
+
+        .stat-row .stat-sep {
+            color: #7f8c8d;
+            margin: 0 5px;
+        }
+
+        .stat-row .stat-val-right {
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: left;
+            flex: 1;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .stat-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #bdc3c7;
+        }
+
+        .stat-value {
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .speed-indicator {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #34495e;
+        }
+
+        .speed-bar {
+            width: 100%;
+            height: 6px;
+            background: #2c3e50;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .speed-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+            transition: width 0.3s ease;
+        }
+
+        /* 统计面板折叠按钮 */
+        #stats-toggle {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: rgba(44, 62, 80, 0.9);
+            border: 1px solid #34495e;
+            border-radius: 8px;
+            padding: 8px 12px;
+            z-index: 1001;
+            cursor: pointer;
+            color: #ecf0f1;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        #stats-toggle:hover {
+            background: rgba(52, 73, 94, 0.95);
+        }
+
+        #stats-panel {
+            position: absolute;
+            top: 115px;
+            left: 10px;
         }
 
         .toggle-switch {
@@ -129,7 +257,7 @@
         .game-wrapper {
             position: relative;
             width: 100%;
-            max-width: 600px;
+            max-width: 520px;
             display: flex;
             justify-content: center;
             margin-top: 10px;
@@ -140,7 +268,7 @@
             flex-direction: column;
             align-items: center;
             background-color: #34495e;
-            padding: 15px;
+            padding: 10px;
             border-radius: 10px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             z-index: 1;
@@ -149,7 +277,7 @@
         .main-game-container {
             display: flex;
             flex-direction: row;
-            gap: 10px;
+            gap: 6px;
         }
 
         .preview-area {
@@ -157,20 +285,20 @@
             flex-direction: column;
             align-items: center;
             background-color: #2c3e50;
-            padding: 5px;
+            padding: 4px;
             border-radius: 5px;
             border: 2px solid #7f8c8d;
             height: 400px;
             box-sizing: border-box;
-            width: 60px;
-            padding-top: 15px;
+            width: 50px;
+            padding-top: 10px;
         }
 
         .preview-canvas {
             background-color: transparent;
             border: none;
             box-shadow: none;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
 
         /* 对手区域：绝对定位在右上方，像画中画一样缩小 */
@@ -396,6 +524,13 @@
     <!-- 设置面板 -->
     <div id="settings-panel">
         <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px;">设置</h3>
+        <div class="setting-item">
+            <span>音效</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggle-sound" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
         <div class="setting-item" id="mobile-layout-setting" style="display: none;">
             <span>自定义按键布局</span>
             <label class="toggle-switch">
@@ -407,6 +542,50 @@
             提示: 现在可以拖动屏幕上的摇杆和按钮区域了
         </div>
         <button class="action-btn" id="btn-reset-layout" style="display: none; padding: 8px; font-size: 14px; margin-top: 10px;">恢复默认布局</button>
+    </div>
+
+    <!-- 游戏统计面板 -->
+    <button id="stats-toggle" style="display: none;">
+        📊 数据
+    </button>
+    <div id="stats-panel" class="stats-panel" style="display: none; width: 100px;">
+        <h3>本局数据</h3>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <div style="text-align: left; flex: 1; color: #2ecc71; font-weight: bold;">我</div>
+            <div style="width: 1px; background: #34495e;"></div>
+            <div style="text-align: right; flex: 1; color: #e74c3c; font-weight: bold;">对方</div>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">分数</span>
+            <span class="stat-val-left" id="stat-my-score">0</span>
+            <span class="stat-sep">:</span>
+            <span class="stat-val-right" id="stat-op-score">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">消除</span>
+            <span class="stat-val-left" id="stat-lines">0</span>
+            <span class="stat-sep">:</span>
+            <span class="stat-val-right" id="stat-op-lines">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">方块</span>
+            <span class="stat-val-left" id="stat-pieces">0</span>
+            <span class="stat-sep">:</span>
+            <span class="stat-val-right" id="stat-op-pieces">0</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">连击</span>
+            <span class="stat-val-left" id="stat-combo">0</span>
+            <span class="stat-sep">:</span>
+            <span class="stat-val-right" id="stat-op-combo">0</span>
+        </div>
+        <div class="speed-indicator">
+            <span class="stat-label">速度</span>
+            <span class="stat-value" id="stat-level">Lv.1</span>
+            <div class="speed-bar">
+                <div class="speed-fill" id="speed-fill" style="width: 10%"></div>
+            </div>
+        </div>
     </div>
 
     <div id="start-screen">
@@ -434,7 +613,7 @@
 
     <div class="game-wrapper">
         <!-- 本地玩家 -->
-        <div class="player-area" style="margin-right: 110px;">
+        <div class="player-area" style="margin-right: 90px;">
             <div class="player-name">我</div>
             <div class="score-board">分数: <span id="my-score">0</span></div>
             <div class="main-game-container">
@@ -664,12 +843,15 @@
                         return;
                     }
                 }
+                if (this.isLocal) SoundManager.play('rotate');
             }
 
             playerMove(offset) {
                 this.player.pos.x += offset;
                 if (this.collide(this.board, this.player)) {
                     this.player.pos.x -= offset;
+                } else if (this.isLocal) {
+                    SoundManager.play('move');
                 }
             }
 
@@ -698,7 +880,10 @@
             }
 
             createPiece(type) {
-                return PIECES[type];
+                const piece = PIECES[type];
+                if (!piece) return null;
+                // 返回深拷贝，防止修改污染 PIECES 原型
+                return piece.map(row => [...row]);
             }
 
             reset() {
@@ -709,14 +894,19 @@
                 } else {
                     this.player.matrix = this.getRandomPiece();
                 }
-                
+
                 this.player.pos.y = 0;
                 this.player.pos.x = (this.board[0].length / 2 | 0) - (this.player.matrix[0].length / 2 | 0);
-                
+
                 if (this.collide(this.board, this.player)) {
                     this.gameOver = true;
-                    if (socket) socket.emit('game_over');
-                    showStatus('你输了！对方太强了~<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                    // 防止重复发送 game_over 事件
+                    if (!this._gameOverEmitted) {
+                        this._gameOverEmitted = true;
+                        if (socket) socket.emit('game_over');
+                        if (this.isLocal) SoundManager.play('lose');
+                        showStatus('你输了！对方太强了~<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                    }
                 }
             }
 
@@ -732,18 +922,38 @@
                     const row = this.board.splice(y, 1)[0].fill(0);
                     this.board.unshift(row);
                     ++y;
-                    
+
                     this.score += rowCount * 10;
+                    // 分数上限检查，防止溢出
+                    this.score = Math.min(this.score, 9999999);
                     rowCount *= 2;
                     linesCleared++;
                 }
-                
+
                 if (linesCleared > 0) {
                     this.updateScore();
+                    // 更新本地统计
+                    if (this.isLocal) {
+                        gameStats.totalLines += linesCleared;
+                        gameStats.totalPieces++;
+                        if (linesCleared >= 2) {
+                            gameStats.currentCombo++;
+                            gameStats.maxCombo = Math.max(gameStats.maxCombo, gameStats.currentCombo);
+                            updateStats();
+                        } else {
+                            gameStats.currentCombo = 0;
+                            updateStats();
+                        }
+                        // 播放消除音效
+                        SoundManager.play('clear');
+                    }
                     // 发送攻击
                     if (linesCleared > 1 && socket) {
                         socket.emit('attack', linesCleared - 1);
                     }
+                } else if (this.isLocal) {
+                    // 没有消除时重置连击
+                    gameStats.currentCombo = 0;
                 }
             }
 
@@ -762,7 +972,7 @@
             }
         }
 
-        // === 网络与游戏主循环 ===
+        // === 游戏主循环控制 ===
         let socket;
         let localTetris;
         let opTetris;
@@ -771,6 +981,174 @@
         let lastTime = 0;
         let gameActive = false;
         let gameLoopTimer = null; // 用于存储 setTimeout
+
+        // 游戏统计
+        const gameStats = {
+            totalLines: 0,
+            totalPieces: 0,
+            maxCombo: 0,
+            currentCombo: 0,
+            level: 1,
+            opponentLines: 0,
+            opponentPieces: 0,
+            opponentCombo: 0,
+            opponentMaxCombo: 0
+        };
+
+        let statsPanelVisible = false;
+
+        // 对手数据追踪（用于计算消除行数）
+        let opPrevBoard = null;
+
+        // 音效系统
+        const SoundManager = {
+            enabled: true,
+            audioContext: null,
+
+            init() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API 不支持');
+                }
+                const saved = localStorage.getItem('tetris-sound-enabled');
+                if (saved !== null) {
+                    this.enabled = saved === 'true';
+                }
+                document.getElementById('toggle-sound').checked = this.enabled;
+            },
+
+            play(type) {
+                if (!this.enabled || !this.audioContext) return;
+                const ctx = this.audioContext;
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+
+                switch(type) {
+                    case 'move':
+                        oscillator.frequency.setValueAtTime(200, now);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.05);
+                        break;
+                    case 'rotate':
+                        oscillator.frequency.setValueAtTime(300, now);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.08);
+                        break;
+                    case 'drop':
+                        oscillator.frequency.setValueAtTime(150, now);
+                        gainNode.gain.setValueAtTime(0.15, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.1);
+                        break;
+                    case 'clear':
+                        oscillator.type = 'square';
+                        oscillator.frequency.setValueAtTime(400, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                        gainNode.gain.setValueAtTime(0.15, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.2);
+                        break;
+                    case 'attack':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.setValueAtTime(100, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                        gainNode.gain.setValueAtTime(0.2, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.3);
+                        break;
+                    case 'win':
+                        const notes = [523, 659, 784, 1047];
+                        notes.forEach((freq, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            osc.frequency.setValueAtTime(freq, now + i * 0.15);
+                            gain.gain.setValueAtTime(0.15, now + i * 0.15);
+                            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 0.3);
+                            osc.start(now + i * 0.15);
+                            osc.stop(now + i * 0.15 + 0.3);
+                        });
+                        break;
+                    case 'lose':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.setValueAtTime(400, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                        gainNode.gain.setValueAtTime(0.15, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.5);
+                        break;
+                }
+            },
+
+            toggle(enabled) {
+                this.enabled = enabled;
+                localStorage.setItem('tetris-sound-enabled', enabled);
+            }
+        };
+
+        // 速度等级配置
+        const SPEED_LEVELS = [
+            { level: 1, interval: 1000 },
+            { level: 2, interval: 900 },
+            { level: 3, interval: 800 },
+            { level: 4, interval: 700 },
+            { level: 5, interval: 600 },
+            { level: 6, interval: 500 },
+            { level: 7, interval: 400 },
+            { level: 8, interval: 300 },
+            { level: 9, interval: 200 },
+            { level: 10, interval: 100 }
+        ];
+
+        function getSpeedInterval(level) {
+            const config = SPEED_LEVELS.find(s => s.level === level);
+            return config ? config.interval : 1000;
+        }
+
+        function updateSpeedLevel() {
+            const newLevel = Math.min(Math.floor(gameStats.totalLines / 10) + 1, 10);
+            if (newLevel !== gameStats.level) {
+                gameStats.level = newLevel;
+                dropInterval = getSpeedInterval(newLevel);
+                document.getElementById('stat-level').textContent = 'Lv.' + newLevel;
+                document.getElementById('speed-fill').style.width = (newLevel * 10) + '%';
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('stat-lines').textContent = gameStats.totalLines;
+            document.getElementById('stat-pieces').textContent = gameStats.totalPieces;
+            document.getElementById('stat-combo').textContent = gameStats.maxCombo;
+            document.getElementById('stat-my-score').textContent = localTetris ? localTetris.score : 0;
+            document.getElementById('stat-op-lines').textContent = gameStats.opponentLines;
+            document.getElementById('stat-op-pieces').textContent = gameStats.opponentPieces;
+            document.getElementById('stat-op-combo').textContent = gameStats.opponentMaxCombo;
+            document.getElementById('stat-op-score').textContent = opTetris ? opTetris.score : 0;
+            updateSpeedLevel();
+        }
+
+        // 停止游戏循环
+        function stopGameLoop() {
+            if (gameLoopTimer) {
+                clearTimeout(gameLoopTimer);
+                gameLoopTimer = null;
+            }
+            gameActive = false;
+        }
 
         function showStatus(msg) {
             const el = document.getElementById('game-over');
@@ -829,6 +1207,29 @@
             btnResetLayout.style.display = 'block';
             loadLayout();
         }
+
+        // 初始化音效系统
+        SoundManager.init();
+
+        // 音效开关
+        document.getElementById('toggle-sound').addEventListener('change', (e) => {
+            SoundManager.toggle(e.target.checked);
+        });
+
+        // 统计面板折叠功能
+        const statsToggle = document.getElementById('stats-toggle');
+        const statsPanel = document.getElementById('stats-panel');
+
+        statsToggle.addEventListener('click', () => {
+            statsPanelVisible = !statsPanelVisible;
+            if (statsPanelVisible) {
+                statsPanel.style.display = 'block';
+                statsToggle.innerHTML = '📊 数据 ▲';
+            } else {
+                statsPanel.style.display = 'none';
+                statsToggle.innerHTML = '📊 数据';
+            }
+        });
 
         // 全屏切换
         btnFullscreen.addEventListener('click', () => {
@@ -952,24 +1353,29 @@
         }
 
         function loadLayout() {
-            const positions = JSON.parse(localStorage.getItem('tetris-btns-pos'));
-            if (positions) {
-                controlBtns.forEach(btn => {
-                    const pos = positions[btn.id];
-                    if (pos) {
-                        btn.style.right = 'auto';
-                        btn.style.bottom = 'auto';
-                        btn.style.left = `${pos.left}px`;
-                        btn.style.top = `${pos.top}px`;
-                    }
-                });
+            try {
+                const positions = JSON.parse(localStorage.getItem('tetris-btns-pos'));
+                if (positions && typeof positions === 'object') {
+                    controlBtns.forEach(btn => {
+                        const pos = positions[btn.id];
+                        if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+                            btn.style.right = 'auto';
+                            btn.style.bottom = 'auto';
+                            btn.style.left = `${pos.left}px`;
+                            btn.style.top = `${pos.top}px`;
+                        }
+                    });
+                }
+            } catch (e) {
+                // 如果 localStorage 数据损坏，忽略并使用默认布局
+                localStorage.removeItem('tetris-btns-pos');
             }
         }
 
         // 键盘事件监听 (支持方向键和 WASD)
         document.addEventListener('keydown', event => {
             if (!gameActive || localTetris.gameOver) return;
-            
+
             switch (event.keyCode) {
                 case 37: case 65: // Left, A
                     localTetris.playerMove(-1);
@@ -984,7 +1390,9 @@
                     localTetris.playerRotate(1);
                     break;
                 case 32: // Space
+                    event.preventDefault(); // 阻止空格键的默认滚动行为
                     localTetris.playerHardDrop();
+                    SoundManager.play('drop');
                     break;
             }
             localTetris.draw();
@@ -1024,7 +1432,7 @@
             if (!roomId) return;
 
             // 更新 URL 方便分享
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomId;
+            const newUrl = window.location.protocol + "//" + window.location.host + '/' + window.location.pathname.replace(/^\//, '') + '?room=' + roomId;
             window.history.replaceState({path: newUrl}, '', newUrl);
 
             document.getElementById('start-screen').style.display = 'none';
@@ -1051,6 +1459,10 @@
                 if (gameActive) {
                     document.getElementById('connection-status').innerText = '重连成功，继续游戏！';
                     document.getElementById('connection-status').style.color = '#2ecc71';
+                    // 重连后重新加入房间
+                    if (socket.roomId) {
+                        socket.emit('join_room', socket.roomId);
+                    }
                 }
             });
 
@@ -1073,48 +1485,101 @@
                 document.getElementById('connection-status').innerText = '对手已加入！游戏开始！';
                 document.getElementById('connection-status').style.color = '#2ecc71';
                 gameActive = true;
-                
+
+                // 重置游戏统计
+                gameStats.totalLines = 0;
+                gameStats.totalPieces = 0;
+                gameStats.maxCombo = 0;
+                gameStats.currentCombo = 0;
+                gameStats.level = 1;
+                gameStats.opponentLines = 0;
+                gameStats.opponentPieces = 0;
+                gameStats.opponentCombo = 0;
+                gameStats.opponentMaxCombo = 0;
+                dropInterval = getSpeedInterval(1);
+                updateStats();
+                statsToggle.style.display = 'flex';
+
                 // 开始游戏时显示移动端控制按钮
                 if (isMobile) {
                     mobileControls.style.display = 'block';
                 }
-                
+
                 // 清除可能存在的旧定时器
                 if (gameLoopTimer) clearTimeout(gameLoopTimer);
-                
+
                 // 重置时间，防止第一下直接掉落
                 lastTime = performance.now();
-                
+
                 localTetris.board = localTetris.createMatrix(COLS, ROWS);
                 localTetris.score = 0;
                 localTetris.updateScore();
                 localTetris.reset();
-                
+
                 opTetris.board = opTetris.createMatrix(COLS, ROWS);
                 opTetris.score = 0;
                 opTetris.updateScore();
-                
+                opPrevBoard = null;
+
                 // 启动游戏循环
                 update(performance.now());
             });
 
             socket.on('op_state', data => {
                 if (!gameActive) return;
-                opTetris.board = data.board;
-                opTetris.player = data.player;
-                opTetris.score = data.score;
-                opTetris.nextPiece = data.nextPiece;
+
+                // 数据校验：检查 board 行列数是否符合预期
+                if (data.board && Array.isArray(data.board) &&
+                    data.board.length === ROWS &&
+                    data.board[0] && data.board[0].length === COLS) {
+                    // 对手消除行数检测：对比两帧棋盘的总已填充格子数
+                    if (opPrevBoard) {
+                        const prevFilled = opPrevBoard.flat().filter(v => v !== 0).length;
+                        const currFilled = data.board.flat().filter(v => v !== 0).length;
+                        // 填充数骤降 → 对方消行了。每消1行约减少 COLS 个格子
+                        const dropped = prevFilled - currFilled;
+                        if (dropped >= COLS) {
+                            const linesAdded = Math.round(dropped / COLS);
+                            gameStats.opponentLines += linesAdded;
+                            gameStats.opponentPieces++;
+                            if (linesAdded >= 2) {
+                                gameStats.opponentCombo++;
+                                gameStats.opponentMaxCombo = Math.max(gameStats.opponentMaxCombo, gameStats.opponentCombo);
+                            } else {
+                                gameStats.opponentCombo = 0;
+                            }
+                            updateStats();
+                        }
+                    }
+                    opPrevBoard = data.board.map(row => [...row]);
+                    opTetris.board = data.board;
+                }
+                if (data.player) {
+                    opTetris.player = data.player;
+                }
+                if (typeof data.score === 'number' && data.score >= 0) {
+                    opTetris.score = data.score;
+                }
+                if (data.nextPiece) {
+                    opTetris.nextPiece = data.nextPiece;
+                }
                 opTetris.updateScore();
                 opTetris.draw();
+                // 更新对手统计数据
+                updateStats();
             });
 
             socket.on('receive_attack', lines => {
                 if (!gameActive) return;
-                localTetris.addGarbage(lines);
+                // 限制每次攻击最多 10 行，防止恶意攻击
+                const safeLines = Math.min(Math.max(1, lines), 10);
+                localTetris.addGarbage(safeLines);
+                SoundManager.play('attack');
             });
 
             socket.on('op_game_over', () => {
-                gameActive = false;
+                stopGameLoop();
+                SoundManager.play('win');
                 showStatus('你赢啦！！对方被你打败了！<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
             });
             
@@ -1123,12 +1588,15 @@
                 document.getElementById('connection-status').innerText = '对方网络不佳，等待重连中...';
                 document.getElementById('connection-status').style.color = '#e67e22';
                 
+                // 使用一个标志来跟踪掉线超时
+                if (window._disconnectTimeout) {
+                    clearTimeout(window._disconnectTimeout);
+                }
                 // 如果对方10秒后还没连回来，再判断为掉线
-                setTimeout(() => {
-                    if (document.getElementById('connection-status').innerText === '对方网络不佳，等待重连中...') {
-                        gameActive = false;
-                        showStatus('对方彻底掉线了...<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">刷新页面</button>');
-                    }
+                window._disconnectTimeout = setTimeout(() => {
+                    if (!gameActive) return; // 防止游戏已结束时重复触发
+                    stopGameLoop();
+                    showStatus('对方彻底掉线了...<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">刷新页面</button>');
                 }, 10000);
             });
         });

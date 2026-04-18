@@ -18,23 +18,35 @@ io.on('connection', (socket) => {
     console.log('玩家连接:', socket.id);
 
     socket.on('join_room', (roomId) => {
-        if (!rooms[roomId]) {
-            rooms[roomId] = [];
+        // 安全验证：检查房间号类型和长度
+        if (typeof roomId !== 'string' || roomId.length > 32 || roomId.length < 1) {
+            socket.emit('error', '无效的房间号');
+            return;
+        }
+        // 清理房间号，只保留字母数字和短横线
+        const sanitizedRoomId = roomId.replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!sanitizedRoomId) {
+            socket.emit('error', '房间号不能为空');
+            return;
         }
 
-        if (rooms[roomId].length >= 2) {
+        if (!rooms[sanitizedRoomId]) {
+            rooms[sanitizedRoomId] = [];
+        }
+
+        if (rooms[sanitizedRoomId].length >= 2) {
             socket.emit('room_full');
             return;
         }
 
-        rooms[roomId].push(socket.id);
-        socket.join(roomId);
-        socket.roomId = roomId;
+        rooms[sanitizedRoomId].push(socket.id);
+        socket.join(sanitizedRoomId);
+        socket.roomId = sanitizedRoomId;
 
-        if (rooms[roomId].length === 1) {
+        if (rooms[sanitizedRoomId].length === 1) {
             socket.emit('waiting');
-        } else if (rooms[roomId].length === 2) {
-            io.to(roomId).emit('start_game');
+        } else if (rooms[sanitizedRoomId].length === 2) {
+            io.to(sanitizedRoomId).emit('start_game');
         }
     });
 
@@ -57,7 +69,10 @@ io.on('connection', (socket) => {
         console.log('玩家断开:', socket.id);
         if (socket.roomId && rooms[socket.roomId]) {
             rooms[socket.roomId] = rooms[socket.roomId].filter(id => id !== socket.id);
-            socket.to(socket.roomId).emit('op_disconnected');
+            // 只有当房间里还有人的时候才通知对方掉线
+            if (rooms[socket.roomId].length > 0) {
+                socket.to(socket.roomId).emit('op_disconnected');
+            }
             if (rooms[socket.roomId].length === 0) {
                 delete rooms[socket.roomId];
             }
