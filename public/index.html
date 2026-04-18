@@ -513,6 +513,132 @@
             font-size: 14px;
             height: 20px;
         }
+
+        /* 更新日志滚动区域 */
+        #update-log-area {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0 0 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            text-align: left;
+            width: 100%;
+            max-width: 300px;
+            scrollbar-width: thin;
+            scrollbar-color: #34495e #2c3e50;
+        }
+
+        #update-log-area::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #update-log-area::-webkit-scrollbar-track {
+            background: #2c3e50;
+            border-radius: 2px;
+        }
+
+        #update-log-area::-webkit-scrollbar-thumb {
+            background: #34495e;
+            border-radius: 2px;
+        }
+
+        #update-log-area .log-version {
+            font-size: 13px;
+            font-weight: bold;
+            color: #f39c12;
+            margin-bottom: 4px;
+            text-align: left;
+        }
+
+        #update-log-area .log-item {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-bottom: 3px;
+            padding-left: 10px;
+            text-align: left;
+        }
+
+        /* 更新日志弹窗 */
+        #changelog-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #changelog-modal.show {
+            display: flex;
+        }
+
+        #changelog-modal .modal-content {
+            background: #2c3e50;
+            border: 1px solid #34495e;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        #changelog-modal .modal-title {
+            font-size: 20px;
+            color: #f39c12;
+            margin: 0 0 15px 0;
+            text-align: left;
+        }
+
+        #changelog-modal .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #7f8c8d;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        #changelog-modal .modal-close:hover {
+            color: #ecf0f1;
+        }
+
+        #changelog-modal .cl-version {
+            font-size: 14px;
+            font-weight: bold;
+            color: #f39c12;
+            margin: 14px 0 6px 0;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 4px;
+            text-align: left;
+        }
+
+        #changelog-modal .cl-item {
+            font-size: 13px;
+            color: #bdc3c7;
+            margin-bottom: 5px;
+            padding-left: 10px;
+            line-height: 1.5;
+            text-align: left;
+        }
+
+        #changelog-modal .cl-loading {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -542,6 +668,7 @@
             提示: 现在可以拖动屏幕上的摇杆和按钮区域了
         </div>
         <button class="action-btn" id="btn-reset-layout" style="display: none; padding: 8px; font-size: 14px; margin-top: 10px;">恢复默认布局</button>
+        <button class="action-btn" id="btn-changelog" style="padding: 8px; font-size: 14px; margin-top: 10px;">更新日志</button>
     </div>
 
     <!-- 游戏统计面板 -->
@@ -593,6 +720,8 @@
         <p style="margin-bottom: 30px; color: #bdc3c7;">互相消除行可以给对方增加垃圾行哦！<br>支持电脑 WASD/方向键 和手机触屏</p>
         <input type="text" id="room-id" placeholder="输入房间号 (随便编一个)" value="love520">
         <button id="join-btn" class="action-btn">加入房间</button>
+        <button id="solo-btn" class="action-btn" style="background-color: #2980b9;">单人游戏</button>
+        <div id="update-log-area">加载中...</div>
     </div>
 
     <h1>Tetris Battle</h1>
@@ -645,6 +774,15 @@
     </div>
 
     <div id="game-over" class="status-bar"></div>
+
+    <!-- 更新日志弹窗 -->
+    <div id="changelog-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="changelog-close">&times;</button>
+            <h2 class="modal-title">更新日志</h2>
+            <div id="changelog-body" class="cl-loading">加载中...</div>
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -901,12 +1039,13 @@
 
                 if (this.collide(this.board, this.player)) {
                     this.gameOver = true;
-                    // 防止重复发送 game_over 事件
                     if (!this._gameOverEmitted) {
                         this._gameOverEmitted = true;
                         if (socket) socket.emit('game_over');
-                        if (this.isLocal) SoundManager.play('lose');
-                        showStatus('你输了！对方太强了~<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                        if (this.isLocal && !gameActive) {
+                            SoundManager.play('lose');
+                            showStatus('游戏结束！<br>得分: ' + this.score + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                        }
                     }
                 }
             }
@@ -1071,18 +1210,31 @@
                         break;
 
                     case 'harddrop':
-                        // 有冲击力的"砰"声：高频撞击 + 低频余振
+                        // 直接落到底：低频闷响 + 高频点击，清脆有力
+                        // 低频 thud
                         const hd = ctx.createOscillator();
                         const hdg = ctx.createGain();
-                        hd.type = 'sawtooth';
+                        hd.type = 'sine';
                         hd.connect(hdg);
                         hdg.connect(ctx.destination);
-                        hd.frequency.setValueAtTime(200, now);
-                        hd.frequency.exponentialRampToValueAtTime(50, now + 0.15);
-                        hdg.gain.setValueAtTime(0.25, now);
-                        hdg.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                        hd.frequency.setValueAtTime(150, now);
+                        hd.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+                        hdg.gain.setValueAtTime(0.3, now);
+                        hdg.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
                         hd.start(now);
-                        hd.stop(now + 0.15);
+                        hd.stop(now + 0.12);
+                        // 高频 click 增强落地感
+                        const hdc = ctx.createOscillator();
+                        const hdcg = ctx.createGain();
+                        hdc.type = 'sine';
+                        hdc.connect(hdcg);
+                        hdcg.connect(ctx.destination);
+                        hdc.frequency.setValueAtTime(800, now);
+                        hdc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                        hdcg.gain.setValueAtTime(0.12, now);
+                        hdcg.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                        hdc.start(now);
+                        hdc.stop(now + 0.05);
                         break;
 
                     case 'clear':
@@ -1175,12 +1327,12 @@
         }
 
         function updateSpeedLevel() {
-            const newLevel = Math.min(Math.floor(gameStats.totalLines / 10) + 1, 10);
+            const newLevel = Math.min(Math.floor(gameStats.totalLines / 5) + 1, 15);
             if (newLevel !== gameStats.level) {
                 gameStats.level = newLevel;
-                dropInterval = getSpeedInterval(newLevel);
+                dropInterval = Math.max(50, 1000 - (newLevel - 1) * 60);
                 document.getElementById('stat-level').textContent = 'Lv.' + newLevel;
-                document.getElementById('speed-fill').style.width = (newLevel * 10) + '%';
+                document.getElementById('speed-fill').style.width = Math.min(100, newLevel * 6.67) + '%';
             }
         }
 
@@ -1547,6 +1699,8 @@
             socket.on('start_game', () => {
                 document.getElementById('connection-status').innerText = '对手已加入！游戏开始！';
                 document.getElementById('connection-status').style.color = '#2ecc71';
+                // 隐藏更新日志
+                document.getElementById('update-log-area').style.display = 'none';
                 gameActive = true;
 
                 // 重置游戏统计
@@ -1682,6 +1836,213 @@
                 }, 10000);
             });
         });
+
+        // === 单人游戏 ===
+        document.getElementById('solo-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            // 隐藏更新日志
+            document.getElementById('update-log-area').style.display = 'none';
+
+            // 隐藏对手区域和连接状态
+            document.querySelector('.opponent-area').style.display = 'none';
+            document.getElementById('connection-status').style.display = 'none';
+
+            localTetris = new Tetris('my-canvas', true, ['preview-1', 'preview-2', 'preview-3']);
+            localTetris.draw();
+
+            // 重置游戏统计
+            gameStats.totalLines = 0;
+            gameStats.totalPieces = 0;
+            gameStats.maxCombo = 0;
+            gameStats.currentCombo = 0;
+            gameStats.level = 1;
+            gameStats.opponentLines = 0;
+            gameStats.opponentPieces = 0;
+            gameStats.opponentCombo = 0;
+            gameStats.opponentMaxCombo = 0;
+            dropInterval = getSpeedInterval(1);
+            updateStats();
+            statsToggle.style.display = 'flex';
+
+            if (isMobile) {
+                mobileControls.style.display = 'block';
+            }
+
+            gameActive = true;
+            if (gameLoopTimer) clearTimeout(gameLoopTimer);
+            lastTime = performance.now();
+
+            updateSolo(performance.now());
+        });
+
+        function updateSolo(time = performance.now()) {
+            if (!gameActive) return;
+
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            while (dropCounter > dropInterval) {
+                localTetris.playerDrop(false);
+                dropCounter -= dropInterval;
+                if (!gameActive || localTetris.gameOver) break;
+            }
+
+            localTetris.draw();
+
+            if (localTetris.gameOver) {
+                stopGameLoop();
+                SoundManager.play('lose');
+                showStatus('游戏结束！<br>得分: ' + localTetris.score + '<br><button class="action-btn" onclick="location.reload()" style="margin-top:15px;">再来一局</button>');
+                return;
+            }
+
+            gameLoopTimer = setTimeout(() => updateSolo(performance.now()), 1000 / 60);
+        }
+
+        // === 更新日志 ===
+        const EMBEDDED_CHANGELOG = [
+            { version: 'v1.07', date: '2026-04-18', items: ['单人游戏模式：新增单人游戏按钮，无需房间号即可练习，关卡难度与双人模式同步', '更新日志 UI：首页只显示最新版本短标题 + 详情入口，详情弹窗实时拉取 README', '硬降音效优化：低频闷响 + 高频点击，清脆有力', '速度曲线调整：每消5行升一级，最高难度扩展至15级'] },
+            { version: 'v1.06', date: '2026-04-18', items: ['安全性增强：服务器端 state_update 事件新增完整数据校验', '前端数据校验：客户端发送状态同步前增加结构校验', '胜利状态优化：对手游戏结束时自动清理棋盘残留方块', '对手数据检测改进：优化对手消除行数统计逻辑', '代码注释完善：sweep() 消除行循环添加边界注释'] },
+            { version: 'v1.05', date: '2026-04-18', items: ['数据面板优化：数据面板默认保持收缩状态', '音效系统：新增旋转、移动、下落、消除、攻击、胜负等音效', '方块生成修复：修复方块对象深拷贝问题，防止棋盘数据被污染', '数据安全增强：服务器新增房间号合法性校验', '网络稳定性：优化对手掉线通知逻辑'] },
+            { version: 'v1.04', date: '2026-04-18', items: ['移动端完全自定义布局：支持单独拖拽每个控制按钮', '全屏模式：左上角新增全屏按钮', 'UI 布局收紧：对手画中画屏幕比例优化'] },
+            { version: 'v1.03', date: '2026-04-18', items: ['后台运行修复：游戏主循环替换为 setTimeout，解决切换页面方块停止下落问题', '网络稳定性强化：延长心跳超时、新增自动重连机制', '快速分享功能：URL 地址栏自动附带房间号参数'] },
+            { version: 'v1.02', date: '2026-04-17', items: ['下一个方块预览：右侧新增独立预览区域，可提前看到未来 3 个即将下落的方块', 'UI 优化：缩小对手画中画屏幕比例'] },
+            { version: 'v1.01', date: '2026-04-17', items: ['按键支持：电脑端新增 W/A/S/D 操作支持', '移动端适配：新增虚拟按键控制', 'UI 布局优化：对手屏幕以画中画模式缩小悬浮至右上方'] }
+        ];
+
+        function parseChangelog(markdown) {
+            const lines = markdown.split('\n');
+            const sections = [];
+            let currentVersion = null;
+            let currentDate = '';
+            let currentItems = [];
+
+            for (const line of lines) {
+                const verMatch = line.match(/^##\s*更新日志\s*\(v(\S+)\)\s*(.*)/i);
+                if (verMatch) {
+                    if (currentVersion) {
+                        sections.push({ version: currentVersion, date: currentDate, items: currentItems });
+                    }
+                    currentVersion = 'v' + verMatch[1];
+                    currentDate = verMatch[2].replace(/[()]/g, '').trim();
+                    currentItems = [];
+                } else if (line.startsWith('- **') && currentVersion) {
+                    const item = line.replace(/^-\s*\*\*/, '').replace(/\*\*:\s*/, ': ').replace(/\*\*/g, '').trim();
+                    if (item) currentItems.push(item);
+                } else if ((line.startsWith('- ') || line.startsWith('  - ')) && currentItems.length > 0) {
+                    const item = line.replace(/^(\s*[-*]\s*)/, '').trim();
+                    if (item) currentItems[currentItems.length - 1] += ' ' + item;
+                }
+            }
+            if (currentVersion) {
+                sections.push({ version: currentVersion, date: currentDate, items: currentItems });
+            }
+            return sections;
+        }
+
+        function renderUpdateLog(sections) {
+            const area = document.getElementById('update-log-area');
+            area.innerHTML = '';
+            if (sections.length === 0) return;
+            const sec = sections[0];
+
+            const headerEl = document.createElement('div');
+            headerEl.style.display = 'flex';
+            headerEl.style.justifyContent = 'space-between';
+            headerEl.style.alignItems = 'center';
+            headerEl.style.marginBottom = '6px';
+
+            const verEl = document.createElement('div');
+            verEl.className = 'log-version';
+            verEl.textContent = '最新更新: ' + sec.version + '    ' + sec.date;
+            verEl.style.marginBottom = '0';
+
+            const detailEl = document.createElement('span');
+            detailEl.textContent = '详情 ›';
+            detailEl.style.cssText = 'font-size:12px;color:#7f8c8d;cursor:pointer;flex-shrink:0;padding-left:8px;';
+            detailEl.addEventListener('click', () => {
+                document.getElementById('btn-changelog').click();
+            });
+            detailEl.addEventListener('mouseenter', () => { detailEl.style.color = '#f39c12'; });
+            detailEl.addEventListener('mouseleave', () => { detailEl.style.color = '#7f8c8d'; });
+
+            headerEl.appendChild(verEl);
+            headerEl.appendChild(detailEl);
+            area.appendChild(headerEl);
+
+            sec.items.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'log-item';
+                // 只显示冒号前的短标题
+                const shortTitle = item.split(/[：:]/)[0].trim();
+                itemEl.textContent = '· ' + shortTitle;
+                area.appendChild(itemEl);
+            });
+        }
+
+        function renderChangelogModal(sections) {
+            const body = document.getElementById('changelog-body');
+            body.innerHTML = '';
+            sections.forEach(sec => {
+                const verEl = document.createElement('div');
+                verEl.className = 'cl-version';
+                verEl.textContent = sec.version + (sec.date ? '  ' + sec.date : '');
+                body.appendChild(verEl);
+                sec.items.forEach(item => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'cl-item';
+                    itemEl.textContent = '· ' + item;
+                    body.appendChild(itemEl);
+                });
+            });
+        }
+
+        function loadChangelog() {
+            // 优先从接口拉取（支持动态更新），失败则用内嵌数据兜底
+            fetch('/api/changelog')
+                .then(r => r.json())
+                .then(data => {
+                    const sections = parseChangelog(data.content);
+                    if (sections.length > 0) {
+                        window._changelogSections = sections;
+                        renderUpdateLog(sections);
+                    } else {
+                        window._changelogSections = EMBEDDED_CHANGELOG;
+                        renderUpdateLog(EMBEDDED_CHANGELOG);
+                    }
+                })
+                .catch(() => {
+                    window._changelogSections = EMBEDDED_CHANGELOG;
+                    renderUpdateLog(EMBEDDED_CHANGELOG);
+                });
+        }
+
+        // 设置面板里的更新日志按钮
+        document.getElementById('btn-changelog').addEventListener('click', () => {
+            const modal = document.getElementById('changelog-modal');
+            const body = document.getElementById('changelog-body');
+            if (window._changelogSections) {
+                renderChangelogModal(window._changelogSections);
+            } else {
+                renderChangelogModal(EMBEDDED_CHANGELOG);
+            }
+            modal.classList.add('show');
+        });
+
+        // 关闭弹窗
+        document.getElementById('changelog-close').addEventListener('click', () => {
+            document.getElementById('changelog-modal').classList.remove('show');
+        });
+
+        document.getElementById('changelog-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('changelog-modal')) {
+                document.getElementById('changelog-modal').classList.remove('show');
+            }
+        });
+
+        // 页面加载时自动拉取更新日志
+        loadChangelog();
     </script>
 </body>
 </html>

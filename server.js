@@ -1,5 +1,7 @@
 const express = require('express');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -11,6 +13,17 @@ const io = new Server(server, {
 });
 
 app.use(express.static('public'));
+
+// API: 获取 README.md 内容（用于更新日志）
+app.get('/api/changelog', (req, res) => {
+    const readmePath = path.join(__dirname, 'README.md');
+    try {
+        const content = fs.readFileSync(readmePath, 'utf-8');
+        res.json({ content });
+    } catch (e) {
+        res.status(500).json({ error: '无法读取更新日志' });
+    }
+});
 
 const rooms = {};
 
